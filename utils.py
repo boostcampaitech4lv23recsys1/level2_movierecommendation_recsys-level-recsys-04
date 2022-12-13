@@ -97,18 +97,31 @@ def avg_pooling(x, dim):
 
 def generate_rating_matrix_valid(user_seq, num_users, num_items):
     # three lists are used to construct sparse matrix
-    row = []
-    col = []
-    data = []
-    for user_id, item_list in enumerate(user_seq):
-        for item in item_list[:-2]:  #
+    """
+    Args:
+        user_seq (2차원 list): [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
+        num_users (int): 유저 수
+        num_items (int): 아이템 수(정확힌 max item_id)
+    Returns:
+        rating_matrix: 크기 (num_users, num_items) 유저-아이템 행렬, 유저의 마지막 2개 영화시청기록 뺌.
+    """    
+    row = [] # user_id가 담긴 리스트
+    col = [] # 유저 별 item_id 리스트가 담긴 리스트
+    data = [] # 1이 달린(positive sampling이라고 알려주는) 리스트.
+
+    # user_id : 유저 번호, item_list : 해당 유저 item_id list
+    for user_id, item_list in enumerate(user_seq): 
+        for item in item_list[:-2]: # 해당 유저가 시청한 영화기록 마지막 2개를 제외함. 
             row.append(user_id)
             col.append(item)
             data.append(1)
 
+    # 리스트를 넘파이 array로 바꿔줍니다.
     row = np.array(row)
-    col = np.array(col)
+    col = np.array(col) # 이 때 2차원 리스트는 겉만 np.array로 바뀌고 속은 list를 유지합니다.
     data = np.array(data)
+
+    # 희소행렬 메트릭스 연산을 도와주는 scipy 내 csr_matrix 함수를 이용해 유저-아이템 행렬 제작합니다.
     rating_matrix = csr_matrix((data, (row, col)), shape=(num_users, num_items))
 
     return rating_matrix
@@ -116,18 +129,31 @@ def generate_rating_matrix_valid(user_seq, num_users, num_items):
 
 def generate_rating_matrix_test(user_seq, num_users, num_items):
     # three lists are used to construct sparse matrix
-    row = []
-    col = []
-    data = []
+    """
+    Args:
+        user_seq (2차원 list): [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
+        num_users (int): 유저 수
+        num_items (int): 아이템 수(정확힌 max item_id)
+    Returns:
+        rating_matrix: 크기 (num_users, num_items) 유저-아이템 행렬, 유저의 마지막 1개 영화시청기록 뺌.
+    """ 
+    row = [] # user_id가 담긴 리스트
+    col = [] # 유저 별 item_id 리스트가 담긴 리스트
+    data = [] # 1이 달린(positive sampling이라고 알려주는) 리스트.
+
+    # user_id : 유저 번호, item_list : 해당 유저 item_id list
     for user_id, item_list in enumerate(user_seq):
-        for item in item_list[:-1]:  #
+        for item in item_list[:-1]: # 해당 유저가 시청한 영화기록 마지막 1개를 제외함.
             row.append(user_id)
             col.append(item)
             data.append(1)
 
+    # 리스트를 넘파이 array로 바꿔줍니다.
     row = np.array(row)
-    col = np.array(col)
+    col = np.array(col) # 이 때 2차원 리스트는 겉만 np.array로 바뀌고 속은 list를 유지합니다.
     data = np.array(data)
+
+    # 희소행렬 메트릭스 연산을 도와주는 scipy 내 csr_matrix 함수를 이용해 유저-아이템 행렬 제작합니다.
     rating_matrix = csr_matrix((data, (row, col)), shape=(num_users, num_items))
 
     return rating_matrix
@@ -135,18 +161,31 @@ def generate_rating_matrix_test(user_seq, num_users, num_items):
 
 def generate_rating_matrix_submission(user_seq, num_users, num_items):
     # three lists are used to construct sparse matrix
-    row = []
-    col = []
-    data = []
+    """
+    Args:
+        user_seq (2차원 list): [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
+        num_users (int): 유저 수
+        num_items (int): 아이템 수(정확힌 max item_id)
+    Returns:
+        rating_matrix: 크기 (num_users, num_items) 유저-아이템 행렬, 유저의 영화시청기록 빼지 않음.
+    """ 
+    row = [] # user_id가 담긴 리스트
+    col = [] # 유저 별 item_id 리스트가 담긴 리스트
+    data = [] # 1이 달린(positive sampling이라고 알려주는) 리스트.
+
+    # user_id : 유저 번호, item_list : 해당 유저 item_id list
     for user_id, item_list in enumerate(user_seq):
-        for item in item_list[:]:  #
+        for item in item_list[:]: # 해당 유저가 시청한 영화기록 제외하지 않고 모두 포함.
             row.append(user_id)
             col.append(item)
             data.append(1)
 
+    # 리스트를 넘파이 array로 바꿔줍니다.
     row = np.array(row)
-    col = np.array(col)
+    col = np.array(col) # 이 때 2차원 리스트는 겉만 np.array로 바뀌고 속은 list를 유지합니다.
     data = np.array(data)
+
+    # 희소행렬 메트릭스 연산을 도와주는 scipy 내 csr_matrix 함수를 이용해 유저-아이템 행렬 제작합니다.
     rating_matrix = csr_matrix((data, (row, col)), shape=(num_users, num_items))
 
     return rating_matrix
@@ -169,22 +208,45 @@ def generate_submission_file(data_file, preds):
 
 
 def get_user_seqs(data_file):
+    """
+    Args:
+        data_file : train_data 경로 
+
+    Returns:
+        user_seq : 유저마다 따로 아이템 리스트 저장. 2차원 배열.
+        => [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
+        max_item : 가장 큰 item_id 
+        valid_rating_matrix : 유저-아이템 희소행렬, 유저마다 마지막 2개 영화 시청기록은 뺌.(valid 위해.)
+        test_rating_matrix : 유저-아이템 희소행렬, 유저마다 마지막 1개 영화 시청기록은 뺌.(test 위해.)
+        submission_rating_matrix : 유저-아이템 희소행렬, 유저마다 영화 시청기록은 빼지 않음.
+    """    
+    # train 데이터 파일을 불러옵니다.
     rating_df = pd.read_csv(data_file)
+
+    # lines : 유저인덱스/아이템리스트 형식의 판다스가 나옵니다.
+    # ex) 11 [4643, 170, 531, 616, 2140, 2722, 2313, 2688, ...]
     lines = rating_df.groupby("user")["item"].apply(list)
+
+    # user_seq : 유저마다 따로 아이템 리스트 저장. 2차원 배열.
+    # ex) [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
     user_seq = []
     item_set = set()
-    for line in lines:
-
+    for line in lines: # line : 한 유저의 아이템 리스트
         items = line
-        user_seq.append(items)
-        item_set = item_set | set(items)
+        user_seq.append(items) # append : 리스트를 하나의 원소로 보고 append함
+        item_set = item_set | set(items) # | : 합집합 연산자
+    # 기록된 가장 큰 아이템 id(번호)
     max_item = max(item_set)
-
+    # len(lines) : 유저 수.
     num_users = len(lines)
+    # num_items : 가장 큰 아이템 id를 기준으로 아이템 수 측정.(실제로는 훨신 작음.) 
     num_items = max_item + 2
 
+    # valid_rating_matrix : 유저-아이템 희소행렬, 유저마다 마지막 2개 영화 시청기록은 뺌.(valid 위해.)
     valid_rating_matrix = generate_rating_matrix_valid(user_seq, num_users, num_items)
+    # test_rating_matrix : 유저-아이템 희소행렬, 유저마다 마지막 1개 영화 시청기록은 뺌.(test 위해.)
     test_rating_matrix = generate_rating_matrix_test(user_seq, num_users, num_items)
+    # submission_rating_matrix : 유저-아이템 희소행렬, 유저마다 영화 시청기록은 빼지 않음.
     submission_rating_matrix = generate_rating_matrix_submission(
         user_seq, num_users, num_items
     )
@@ -214,6 +276,7 @@ def get_user_seqs_long(data_file):
     lines = rating_df.groupby("user")["item"].apply(list)
 
     # user_seq : 유저마다 따로 아이템 리스트 저장. 2차원 배열.
+    # ex) [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
     user_seq = []
     # long_sequence : 아이템 리스트를 1차원으로 늘려서 이어붙임. 
     long_sequence = []

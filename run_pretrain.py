@@ -18,7 +18,7 @@ from utils import (
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser() 
 
     # 데이터 경로와 네이밍 부분.
     parser.add_argument("--data_dir", default="../data/train/", type=str)
@@ -39,6 +39,8 @@ def main():
     parser.add_argument("--num_attention_heads", default=2, type=int)
     # 활성화 함수. (default gelu => relu 변형)
     parser.add_argument("--hidden_act", default="gelu", type=str)  # gelu relu
+
+    # dropout하는 prob 기준 값 정하기? (모델 본 사람이 채워줘.)
     parser.add_argument(
         "--attention_probs_dropout_prob",
         type=float,
@@ -48,7 +50,9 @@ def main():
     parser.add_argument(
         "--hidden_dropout_prob", type=float, default=0.5, help="hidden dropout p"
     )
+    # 모델 파라미터 initializer 범위 설정? (모델 본 사람이 채워줘.)
     parser.add_argument("--initializer_range", type=float, default=0.02)
+    # 최대 시퀀셜 길이 설정
     parser.add_argument("--max_seq_length", default=50, type=int)
 
     # train args, 트레이너 하이퍼파라미터
@@ -88,9 +92,9 @@ def main():
     # parser 형태로 argument를 입력받습니다.
     args = parser.parse_args()
 
-    # 시드 고정!
+    # 시드 고정 (utils.py 내 함수 존재)
     set_seed(args.seed)
-    # output 폴더가 존재하는지 체크. 존재하지 않는다면 만들어줍니다.
+    # output 폴더가 존재하는지 체크. 존재하지 않는다면 만들어줍니다. (utils.py 내 함수 존재)
     check_path(args.output_dir)
 
     # Pretrain 모델 기록용 파일 경로 저장합니다.
@@ -100,10 +104,11 @@ def main():
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_id
     args.cuda_condition = torch.cuda.is_available() and not args.no_cuda
 
-    # train 데이터 파일 불러오는 경로 설정합니다.
+    # 데이터 파일 불러오는 경로 설정합니다.
     args.data_file = args.data_dir + "train_ratings.csv"
     item2attribute_file = args.data_dir + args.data_name + "_item2attributes.json"
     # user_seq : 2차원 아이템 id 리스트, max_item : 가장 높은 아이템 id, long_sequence : 1차원 아이템 id 리스트.
+    # user_seq 예시 : [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
     # 자세한건 get_user_seqs_long 함수 내에 써놨습니다.
     user_seq, max_item, long_sequence = get_user_seqs_long(args.data_file)
 
@@ -128,8 +133,10 @@ def main():
     # pre_epochs 만큼(defalut : 300) epochs를 수행합니다.
     for epoch in range(args.pre_epochs):
         # PretrainDataset 클래스를 불러옵니다. (datasets.py 내 존재)
+        # user_seq : 유저마다 따로 아이템 리스트 저장. 2차원 배열 => [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
+        # long_sequence : long_sequence : 1차원 아이템 id 리스트 => [1번 유저 item_id 리스트, 2번 유저 item_id 리스트]
         pretrain_dataset = PretrainDataset(args, user_seq, long_sequence)
-        # RandomSampler : 데이터 셋을 랜덤하게 섞어줍니다. 인덱스를 반해줍니다.
+        # RandomSampler : 데이터 셋을 랜덤하게 섞어줍니다. 인덱스를 반환해줍니다.
         pretrain_sampler = RandomSampler(pretrain_dataset)
         # 모델 학습을 하기 위한 데이터 로더를 만듭니다. 랜덤으로 섞고 배치 단위(defalut : 256)로 출력합니다.
         pretrain_dataloader = DataLoader(

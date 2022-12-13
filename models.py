@@ -7,15 +7,22 @@ from modules import Encoder, LayerNorm
 class S3RecModel(nn.Module):
     def __init__(self, args):
         super(S3RecModel, self).__init__()
+        # item embedding
         self.item_embeddings = nn.Embedding(
             args.item_size, args.hidden_size, padding_idx=0
         )
+        # attribute embedding ("genre")
         self.attribute_embeddings = nn.Embedding(
             args.attribute_size, args.hidden_size, padding_idx=0
         )
+        # positional embedding
+        # label 개수 <= max_seq_length
         self.position_embeddings = nn.Embedding(args.max_seq_length, args.hidden_size)
+        # 
         self.item_encoder = Encoder(args)
+        # layer normalization
         self.LayerNorm = LayerNorm(args.hidden_size, eps=1e-12)
+        # dropout
         self.dropout = nn.Dropout(args.hidden_dropout_prob)
         self.args = args
 

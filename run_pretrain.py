@@ -34,6 +34,8 @@ def main():
     parser.add_argument(
         "--num_hidden_layers", type=int, default=2, help="number of layers"
     )
+    # hidden_size % num_attention_heads == 0 만족해야 함
+    # modules.py -> SelfAttention 클래스 참고
     parser.add_argument("--num_attention_heads", default=2, type=int)
     # 활성화 함수. (default gelu => relu 변형)
     parser.add_argument("--hidden_act", default="gelu", type=str)  # gelu relu

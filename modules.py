@@ -26,9 +26,14 @@ ACT2FN = {"gelu": gelu, "relu": F.relu, "swish": swish}
 
 class LayerNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-12):
-        """Construct a layernorm module in the TF style (epsilon inside the square root)."""
+        """
+        Construct a layernorm module in the TF style (epsilon inside the square root).
+        Tensorflow 스타일로 만들었다는건가?
+        """
         super(LayerNorm, self).__init__()
+        # hidden_size 크기의 1로만 구성된 tensor for weight 생성하고, parameter로 등록
         self.weight = nn.Parameter(torch.ones(hidden_size))
+        # hidden_size 크기의 0으로만 구성된 tensor for bias 생성하고, parameter로 등록
         self.bias = nn.Parameter(torch.zeros(hidden_size))
         self.variance_epsilon = eps
 
@@ -78,18 +83,27 @@ class SelfAttention(nn.Module):
                 "The hidden size (%d) is not a multiple of the number of attention "
                 "heads (%d)" % (args.hidden_size, args.num_attention_heads)
             )
+        # 이 과정 왜 필요하지
+        # 위에서 저렇게 ValueError 일으킬거면, 어차피 all_head_size = hidden_size 아닌가
         self.num_attention_heads = args.num_attention_heads
         self.attention_head_size = int(args.hidden_size / args.num_attention_heads)
         self.all_head_size = self.num_attention_heads * self.attention_head_size
 
+        # generate Query, Key, Value vectors with nn.Linear
+        # dimension : hidden_size -> all_head_size
         self.query = nn.Linear(args.hidden_size, self.all_head_size)
         self.key = nn.Linear(args.hidden_size, self.all_head_size)
         self.value = nn.Linear(args.hidden_size, self.all_head_size)
 
+        # Dropout (for Attention Layer)
         self.attn_dropout = nn.Dropout(args.attention_probs_dropout_prob)
 
+        # Dense Layer
+        # Dimension: hidden_size -> hidden_size
         self.dense = nn.Linear(args.hidden_size, args.hidden_size)
+        # Layer Normalization
         self.LayerNorm = LayerNorm(args.hidden_size, eps=1e-12)
+        # Dropout (for Output Layer)
         self.out_dropout = nn.Dropout(args.hidden_dropout_prob)
 
     def transpose_for_scores(self, x):

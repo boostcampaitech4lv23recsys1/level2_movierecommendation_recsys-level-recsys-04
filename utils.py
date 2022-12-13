@@ -198,25 +198,54 @@ def get_user_seqs(data_file):
 
 
 def get_user_seqs_long(data_file):
+    """
+    Args:
+        data_file : train 데이터 파일 경로
+    Returns:
+        user_seq : 유저 id(번호) 순서대로 아이템 id 리스트 출력. 2차원 리스트(행길이는 유저 숫자)
+        max_item : 가장 큰 아이템 id(번호).
+        long_sequence : 아이템 id를 유저 id 순서대로 1차원으로 쭉 늘린 리스트.
+    """    
+    # train 데이터 파일을 불러옵니다.
     rating_df = pd.read_csv(data_file)
+
+    # lines : 유저인덱스/아이템리스트 형식의 판다스가 나옵니다.
+    # ex) 11 [4643, 170, 531, 616, 2140, 2722, 2313, 2688, ...]
     lines = rating_df.groupby("user")["item"].apply(list)
+
+    # user_seq : 유저마다 따로 아이템 리스트 저장. 2차원 배열.
     user_seq = []
+    # long_sequence : 아이템 리스트를 1차원으로 늘려서 이어붙임. 
     long_sequence = []
+    # item_set : 기록된 아이템 모두 담는 집합.
     item_set = set()
-    for line in lines:
+    for line in lines: # line : 한 유저의 아이템 리스트
         items = line
-        long_sequence.extend(items)
-        user_seq.append(items)
-        item_set = item_set | set(items)
-    max_item = max(item_set)
+        long_sequence.extend(items) # extend : 리스트를 길게 이어붙임
+        user_seq.append(items) # append : 리스트를 하나의 원소로 보고 append함
+        item_set = item_set | set(items) # | : 합집합 연산자
+    max_item = max(item_set) # 기록된 가장 큰 아이템 id(번호)
 
     return user_seq, max_item, long_sequence
 
 
 def get_item2attribute_json(data_file):
+    """
+    Args:
+        data_file : item과 genre의 mapping 데이터 파일 경로
+    Returns:
+        item2attribut : 딕셔너리, key => item id, value => genre의 list
+        (ex : {
+            "1":[8,12,13,5,9],
+            "2":[8,13,9],
+            "3":[5,6],
+            ...
+        })
+    """
     item2attribute = json.loads(open(data_file).readline())
     attribute_set = set()
-    for item, attributes in item2attribute.items():
+    # item : 아이템 id, attributes : 해당 아이템 id의 genre 변수 리스트.
+    for item, attributes in item2attribute.items(): 
         attribute_set = attribute_set | set(attributes)
     attribute_size = max(attribute_set)
     return item2attribute, attribute_size

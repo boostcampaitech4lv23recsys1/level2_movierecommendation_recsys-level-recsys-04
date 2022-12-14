@@ -1,12 +1,13 @@
 import numpy as np
 import torch
 import torch.nn as nn
-import tqdm
+from tqdm import tqdm
 from torch.optim import Adam
 
 from utils import ndcg_k, recall_at_k
 
 
+# PretrainTrainer, FinetuneTrainer 모두 Trainer을 상속받는 클래스.
 class Trainer:
     def __init__(
         self,
@@ -18,11 +19,16 @@ class Trainer:
         args,
     ):
 
+        # 모든 args를 클래스 내 저장합니다.
         self.args = args
+
+        # GPU 상태를 클래스 내 저장합니다.
         self.cuda_condition = torch.cuda.is_available() and not self.args.no_cuda
         self.device = torch.device("cuda" if self.cuda_condition else "cpu")
 
+        # 입력된 모델을 클래스 내 저장합니다.
         self.model = model
+        # 만약 GPU 사용이 가능하다면 모델을 GPU에 실습니다.
         if self.cuda_condition:
             self.model.cuda()
 
@@ -32,7 +38,8 @@ class Trainer:
         self.test_dataloader = test_dataloader
         self.submission_dataloader = submission_dataloader
 
-        # self.data_name = self.args.data_name
+        # betas : Adam 옵티마이저 하이퍼 파라미터
+        # (참고 : https://pytorch.org/docs/stable/generated/torch.optim.Adam.html)
         betas = (self.args.adam_beta1, self.args.adam_beta2)
         self.optim = Adam(
             self.model.parameters(),
@@ -42,8 +49,16 @@ class Trainer:
         )
 
         print("Total Parameters:", sum([p.nelement() for p in self.model.parameters()]))
+
+        # BCELoss(2진 분류시 일반적으로 사용되는 손실함수)를 클래스에 저장합니다.
         self.criterion = nn.BCELoss()
 
+    # train, valid, test, submission 모두 iteration을 진행하는 함수입니다.
+    # iteration은 Trainer에 없어서 상속하는 클래스 Trainer에서 구현해야합니다.
+    # iteration은 배치단위로 모델을 학습하거나 예측값을 제출하는 함수입니다.
+    # iteration은 현재 FinetuneTrainer(run_train.py)에만 구현되어있습니다.
+    # 즉 FinetuneTrainer 이외에는 train, valid, test, submission 함수를 사용하지 않습니다.
+    # PretrainTrainer(run_pretrain.py)에서는 pretrain 함수를 대신 사용합니다.
     def train(self, epoch):
         self.iteration(epoch, self.train_dataloader)
 
@@ -110,6 +125,7 @@ class Trainer:
         return rating_pred
 
 
+# Trainer 클래스를 상속해서 만들었습니다.
 class PretrainTrainer(Trainer):
     def __init__(
         self,
@@ -129,6 +145,7 @@ class PretrainTrainer(Trainer):
             args,
         )
 
+    # 데이터 로더를 받아 한 에폭의 학습을 진행합니다.
     def pretrain(self, epoch, pretrain_dataloader):
 
         desc = (
@@ -138,20 +155,26 @@ class PretrainTrainer(Trainer):
             f"SP-{self.args.sp_weight}"
         )
 
-        pretrain_data_iter = tqdm.tqdm(
+        # tqdm을 통해 iter를 만듭니다.
+        # 핵심은 enumerate(pretrain_dataloader) 이 것만 기억하셔도 문제 없습니다.
+        # 나머지 코드는 tqdm 출력을 이쁘게 도와주는 도구입니다.
+        pretrain_data_iter = tqdm(
             enumerate(pretrain_dataloader),
             desc=f"{self.args.model_name}-{self.args.data_name} Epoch:{epoch}",
             total=len(pretrain_dataloader),
             bar_format="{l_bar}{r_bar}",
         )
 
+        # 클래스 내 모델 train 모드(파라미터 업데이트 가능)
         self.model.train()
+
+        # epochs 당 loss 계산을 위해 만들었습니다.
         aap_loss_avg = 0.0
         mip_loss_avg = 0.0
         map_loss_avg = 0.0
         sp_loss_avg = 0.0
 
-        for i, batch in pretrain_data_iter:
+        for i, batch in pretrain_data_iter: # enumerate(pretrain_dataloader) <=> pretrain_data_iter
             # 0. batch_data will be sent into the device(GPU or CPU)
             batch = tuple(t.to(self.device) for t in batch)
             (
@@ -224,20 +247,25 @@ class FinetuneTrainer(Trainer):
 
     def iteration(self, epoch, dataloader, mode="train"):
 
-        # Setting the tqdm progress bar
-
-        rec_data_iter = tqdm.tqdm(
+        # tqdm을 통해 iter를 만듭니다.
+        # 핵심은 enumerate(dataloader) 이 것만 기억하셔도 문제 없습니다.
+        # 나머지 코드는 tqdm 출력을 이쁘게 도와주는 도구입니다.
+        rec_data_iter = tqdm(
             enumerate(dataloader),
             desc="Recommendation EP_%s:%d" % (mode, epoch),
             total=len(dataloader),
             bar_format="{l_bar}{r_bar}",
         )
+
+        # train 모드 일때는 (trainer.train()으로 실행된 경우.)
         if mode == "train":
+            # 클래스 내 모델 train 모드(파라미터 업데이트 가능)
             self.model.train()
+            # loss 기록을 위해 만듭니다.
             rec_avg_loss = 0.0
             rec_cur_loss = 0.0
 
-            for i, batch in rec_data_iter:
+            for i, batch in rec_data_iter: # enumerate(dataloader) <=> rec_data_iter
                 # 0. batch_data will be sent into the device(GPU or CPU)
                 batch = tuple(t.to(self.device) for t in batch)
                 _, input_ids, target_pos, target_neg, _ = batch

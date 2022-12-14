@@ -50,7 +50,8 @@ def main():
     parser.add_argument(
         "--hidden_dropout_prob", type=float, default=0.5, help="hidden dropout p"
     )
-    # 모델 파라미터 initializer 범위 설정? (모델 본 사람이 채워줘.)
+    # models.py -> init_weights 함수
+    # initialize model weight -> (mean=0, std=initializer_range) 로 초기화
     parser.add_argument("--initializer_range", type=float, default=0.02)
     # 최대 시퀀셜 길이 설정
     parser.add_argument("--max_seq_length", default=50, type=int)
@@ -60,7 +61,7 @@ def main():
     parser.add_argument(
         "--batch_size", type=int, default=256, help="number of batch_size"
     )
-    parser.add_argument("--epochs", type=int, default=200, help="number of epochs")
+    parser.add_argument("--epochs", type=int, default=1, help="number of epochs")
     parser.add_argument("--no_cuda", action="store_true")
     parser.add_argument("--log_freq", type=int, default=1, help="per epoch print res")
     parser.add_argument("--seed", default=42, type=int)

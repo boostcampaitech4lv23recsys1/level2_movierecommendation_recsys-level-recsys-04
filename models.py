@@ -32,6 +32,7 @@ class S3RecModel(nn.Module):
         self.map_norm = nn.Linear(args.hidden_size, args.hidden_size)
         self.sp_norm = nn.Linear(args.hidden_size, args.hidden_size)
         self.criterion = nn.BCELoss(reduction="none")
+        # initialize layers
         self.apply(self.init_weights)
 
     # AAP
@@ -238,9 +239,12 @@ class S3RecModel(nn.Module):
         if isinstance(module, (nn.Linear, nn.Embedding)):
             # Slightly different from the TF version which uses truncated_normal for initialization
             # cf https://github.com/pytorch/pytorch/pull/5617
+            # Linear & Embedding weight mean=0, std=initializer_range로 초기화
             module.weight.data.normal_(mean=0.0, std=self.args.initializer_range)
         elif isinstance(module, LayerNorm):
+            # LayerNorm weight=1, bias=0 으로 초기화
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
         if isinstance(module, nn.Linear) and module.bias is not None:
+            # Bias 존재하는 Linear bias=0 으로 초기화
             module.bias.data.zero_()

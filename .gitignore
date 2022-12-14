@@ -2,3 +2,4 @@ output/
 .empty/
 .vscode
 tem.ipynb
+__pycache__

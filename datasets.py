@@ -179,10 +179,12 @@ class SASRecDataset(Dataset):
         self.max_len = args.max_seq_length
 
     def __getitem__(self, index):
-
+        # index로 user_id 사용
+        # user_id를 index로 사용
         user_id = index
         items = self.user_seq[index]
 
+        # check data_type
         assert self.data_type in {"train", "valid", "test", "submission"}
 
         # [0, 1, 2, 3, 4, 5, 6]
@@ -217,25 +219,34 @@ class SASRecDataset(Dataset):
             target_pos = items[:]  # will not be used
             answer = []
 
+
         target_neg = []
         seq_set = set(items)
+        # target_pos 길이만큼 target_neg에 negative samples 생성
+        # 자세한건 neg_sample 함수 내에 써놨습니다.
         for _ in input_ids:
             target_neg.append(neg_sample(seq_set, self.args.item_size))
 
+        # padding
+        # max_len 길이에 맞춰서 앞쪽 0으로 채움
+        # pad_len 값이 음수이면, [0] * pad_len = []
         pad_len = self.max_len - len(input_ids)
         input_ids = [0] * pad_len + input_ids
         target_pos = [0] * pad_len + target_pos
         target_neg = [0] * pad_len + target_neg
 
+        # 길이 max_len으로 통일
         input_ids = input_ids[-self.max_len :]
         target_pos = target_pos[-self.max_len :]
         target_neg = target_neg[-self.max_len :]
 
+        # check length
         assert len(input_ids) == self.max_len
         assert len(target_pos) == self.max_len
         assert len(target_neg) == self.max_len
 
-        if self.test_neg_items is not None:
+        # to tensor
+        if self.test_neg_items is not None:  # 현재 베이스라인 코드에서, test_neg_items가 None이 아닌 경우는 찾지 못했음
             test_samples = self.test_neg_items[index]
 
             cur_tensors = (
@@ -258,4 +269,5 @@ class SASRecDataset(Dataset):
         return cur_tensors
 
     def __len__(self):
+        # user 수 반환
         return len(self.user_seq)

@@ -28,7 +28,9 @@ def check_path(path):
 
 
 def neg_sample(item_set, item_size):
+    # 1 <= item < item_size
     item = random.randint(1, item_size - 1)
+    # item_set 안에 없는 item이 나올 때 까지 계속 반복
     while item in item_set:
         item = random.randint(1, item_size - 1)
     return item

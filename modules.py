@@ -29,18 +29,25 @@ class LayerNorm(nn.Module):
         """
         Construct a layernorm module in the TF style (epsilon inside the square root).
         Tensorflow 스타일로 만들었다는건가?
+        https://sonsnotation.blogspot.com/2020/11/8-normalization.html url 참고
         """
         super(LayerNorm, self).__init__()
         # hidden_size 크기의 1로만 구성된 tensor for weight 생성하고, parameter로 등록
         self.weight = nn.Parameter(torch.ones(hidden_size))
         # hidden_size 크기의 0으로만 구성된 tensor for bias 생성하고, parameter로 등록
         self.bias = nn.Parameter(torch.zeros(hidden_size))
+        # 아래 forward 함수의 s에 더해줄 값
         self.variance_epsilon = eps
 
     def forward(self, x):
+        # 평균 계산
+        # keepdim=True : 그 아랫줄에서 x와 연산 가능하도록 차원 맞춰주기 위해
         u = x.mean(-1, keepdim=True)
+        # 분산 계산
         s = (x - u).pow(2).mean(-1, keepdim=True)
+        # Normalzie / s의 원소 값이 0인 경우를 대비하기 위해 variance_epsilon 더해줌
         x = (x - u) / torch.sqrt(s + self.variance_epsilon)
+        # scale and shift : activate function에 적합한 분포를 갖게 하기 위함
         return self.weight * x + self.bias
 
 

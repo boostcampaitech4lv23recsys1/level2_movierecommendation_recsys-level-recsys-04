@@ -111,7 +111,18 @@ class S3RecModel(nn.Module):
         pos_segment,
         neg_segment,
     ):
-
+        """
+        Args:
+            attributes (tensor): (batch * max_len * attribute_size), 아이템별 속성 멀티핫인코딩
+            masked_item_sequence (tensor): (batch * max_len), 영화 id 기록(마스킹 중간에 되있음) 
+            pos_items (tensor): (batch * max_len), 영화 id 기록(패딩 외 전처리하지 않은 순수 데이터)
+            neg_items (tensor): (batch * max_len), 영화 id 기록(마스킹 부분이 네거티브 샘플로 대체)
+            masked_segment_sequence (tensor): (batch * max_len), 패딩/실제/마스킹/실제
+            pos_segment (tensor): (batch * max_len), 패딩/마스킹/실제/마스킹 
+            neg_segment (tensor): (batch * max_len), 패딩/마스킹/네거티브/마스킹
+        Returns:
+            aap_loss, mip_loss, map_loss, sp_loss: loss들
+        """    
         # Encode masked sequence
 
         sequence_emb = self.add_position_embedding(masked_item_sequence)

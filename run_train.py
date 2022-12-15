@@ -96,7 +96,7 @@ def main():
     # user_seq : 유저마다 따로 아이템 리스트 저장. 2차원 배열, => [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
     # max_item : 가장 큰 item_id, matrix 3개 : 유저-아이템 희소행렬
     # valid : 유저마다 마지막 2개 영화 시청기록 뺌, test : 유저마다 마지막 1개 영화 시청기록 뺌,
-    # 자세한건 get_user_seqs 함수 내에 써놨습니다.
+    # 자세한건 get_user_seqs 함수(utils.py) 내에 써놨습니다.
     user_seq, max_item, valid_rating_matrix, test_rating_matrix, _ = get_user_seqs(
         args.data_file
     )

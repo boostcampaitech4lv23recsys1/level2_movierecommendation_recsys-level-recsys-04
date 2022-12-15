@@ -8,10 +8,16 @@ from utils import neg_sample
 
 class PretrainDataset(Dataset):
     def __init__(self, args, user_seq, long_sequence):
+        """
+        Args:
+            args (class): 전체 파일 args 총 집합 클래스.
+            user_seq (list): 2차원 아이템 id 리스트, [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
+            long_sequence (list): 1차원 아이템 id 리스트, [1번 유저 item_id 리스트, 2번 유저 item_id 리스트, ..]
+        """        
         self.args = args
         self.user_seq = user_seq
         self.long_sequence = long_sequence
-        self.max_len = args.max_seq_length
+        self.max_len = args.max_seq_length # 시퀀셜 최대 길이(default=50)
         self.part_sequence = []
         # 아래 split_sequence 함수 참고
         self.split_sequence()
@@ -21,10 +27,12 @@ class PretrainDataset(Dataset):
         이 함수를 통해서,
         part_sequence에 저장되는 sequence의 길이는 모두 max_len보다 작거나 같아짐
         """
-        for seq in self.user_seq:
+        # self.user_seq : [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
+        for seq in self.user_seq: # seq : 유저마다 item_id 리스트. 
             # ex) max_len = 3일 때
             # [3, 5, 3, 2, 6, 9, 1, 5] -> [2, 6, 9]
-            input_ids = seq[-(self.max_len + 2) : -2]  # keeping same as train set
+            # keeping same as train set(valid set은 뒤에 2개로 진행하기 때문.)
+            input_ids = seq[-(self.max_len + 2) : -2]  
             # ex) [2, 6, 9] -> [2], [2, 6], [2, 6, 9]
             for i in range(len(input_ids)):
                 self.part_sequence.append(input_ids[: i + 1])
@@ -46,16 +54,16 @@ class PretrainDataset(Dataset):
         for item in sequence[:-1]:
             # prob : 0 <= x < 1 사이 random float 값
             prob = random.random()
-            if prob < self.args.mask_p:  # prob가 mask_p 보다 작을 경우 (negative case)
+            if prob < self.args.mask_p:  # prob가 mask_p 보다 작을 경우 (negative case) (default=0.2)
                 # item 번호 대신, mask_id 추가 (masking 처리)
-                masked_item_sequence.append(self.args.mask_id)
+                masked_item_sequence.append(self.args.mask_id) # mask_id : max_item(item_id 최댓값) + 1
                 # item_set 안에 없는 item (negative sample) random하게 뽑아서 neg_items에 추가
-                neg_items.append(neg_sample(item_set, self.args.item_size))
+                neg_items.append(neg_sample(item_set, self.args.item_size)) # neg_sample(utils.py)
             else:  # prob가 mask_p 보다 크거나 같을 경우
                 masked_item_sequence.append(item)
                 neg_items.append(item)
 
-        # add mask at the last position
+        # add mask at the last position (맨 뒤 한 값은 무조건 마스킹.)
         masked_item_sequence.append(self.args.mask_id)
         neg_items.append(neg_sample(item_set, self.args.item_size))
 
@@ -70,6 +78,7 @@ class PretrainDataset(Dataset):
             # pos & neg items 가져올 index 랜덤 뽑기
             # pos_segment & neg_segment 길이가 sample_length보다 작아지지 않게 하려는 작업인듯
             start_id = random.randint(0, len(sequence) - sample_length)
+            # self.long_sequence : 1차원 아이템 id 리스트, [1번 유저 item_id 리스트, 2번 유저 item_id 리스트, ..]
             neg_start_id = random.randint(0, len(self.long_sequence) - sample_length)
             # pos_segment 길이 = sample_length
             # 실제로 시청한 positive sample들 가져옴
@@ -138,13 +147,13 @@ class PretrainDataset(Dataset):
         attributes = []
         for item in pos_items:
             # 이거 (attribute_size+1) 로 해줘야하지 않나?
-            # 제일 큰 genre_id 값이 3이면, [0, 0, 0, 1] 되야 하니까?
+            # 제일 큰 genre_id 값이 3이면, [0, 0, 0, 1] 되야 하니까? => 리스트 인덱싱을 0부터 채우니깐 괜찮은듯?
             attribute = [0] * self.args.attribute_size
             try:
                 now_attribute = self.args.item2attribute[str(item)]
-                for a in now_attribute:
+                for a in now_attribute: # 속성이 여러개인 경우도 고려.
                     attribute[a] = 1
-            except:
+            except: # 속성이 없을수도. (모든 아이템은 다 속성이 1개는 있으나 mask_id는 속성이 없음.)
                 pass
             attributes.append(attribute)
 
@@ -167,11 +176,24 @@ class PretrainDataset(Dataset):
             torch.tensor(pos_segment, dtype=torch.long),
             torch.tensor(neg_segment, dtype=torch.long),
         )
+        '''
+        (길이), 예시, 설명 순.
+        attributes : (max_len * attribute_size), [[0,0,1,0 ...], [0,0,0,1 ...] ...], pos_items 기준 속성 멀티핫인코딩.
+        masked_item_sequence : (max_len), [0,0,47,119146, .. ,119146], 영화 id 기록(마스킹 중간에 되있음.)
+        pos_items : (max_len), [0,0,47,58, .. ,2571], 영화 id 기록(앞 패딩 이외 전처리하지 않은 순수 데이터)
+        neg_items : (max_len), [0,0,47,10, .. ,25], 영화 id 기록(masked_item_sequence 마스킹 부분이 네거티브 샘플로 대체.)
+
+        아래 3개 sequence 변수는 일부 아이템 중간 부분을 또 샘플링함. (위 코드를 한번 봐야 암.)
+        masked_segment_sequence : (max_len), [0,0,47,119146, .. ,119146], 패딩/실제/마스킹/실제
+        pos_segment : (max_len), [0,0,47,58, .. ,2571], 패딩/마스킹/실제/마스킹
+        neg_segment : (max_len), [0,0,47,10, .. ,25], 패딩/마스킹/네거티브/마스킹
+        ''' 
         return cur_tensors
 
-
+# train 데이터 셋(pretrain X)
 class SASRecDataset(Dataset):
     def __init__(self, args, user_seq, test_neg_items=None, data_type="train"):
+        # user_seq : 유저마다 따로 아이템 리스트 저장. 2차원 배열, => [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
         self.args = args
         self.user_seq = user_seq
         self.test_neg_items = test_neg_items
@@ -192,9 +214,11 @@ class SASRecDataset(Dataset):
         # target [1, 2, 3, 4]
 
         # valid [0, 1, 2, 3, 4]
+        # target [1, 2, 3, 4, 5]
         # answer [5]
 
         # test [0, 1, 2, 3, 4, 5]
+        # target [1, 2, 3, 4, 5, 6]
         # answer [6]
 
         # submission [0, 1, 2, 3, 4, 5, 6]
@@ -222,7 +246,7 @@ class SASRecDataset(Dataset):
 
         target_neg = []
         seq_set = set(items)
-        # target_pos 길이만큼 target_neg에 negative samples 생성
+        # input_ids 길이만큼 target_neg에 negative samples 생성
         # 자세한건 neg_sample 함수 내에 써놨습니다.
         for _ in input_ids:
             target_neg.append(neg_sample(seq_set, self.args.item_size))
@@ -261,9 +285,9 @@ class SASRecDataset(Dataset):
             cur_tensors = (
                 torch.tensor(user_id, dtype=torch.long),  # user_id for testing
                 torch.tensor(input_ids, dtype=torch.long),
-                torch.tensor(target_pos, dtype=torch.long),
-                torch.tensor(target_neg, dtype=torch.long),
-                torch.tensor(answer, dtype=torch.long),
+                torch.tensor(target_pos, dtype=torch.long), # input_ids 대비 하나씩 밀림.
+                torch.tensor(target_neg, dtype=torch.long), # input_ids 길이만큼 네거티브 샘플링.
+                torch.tensor(answer, dtype=torch.long), # 마지막 값.
             )
 
         return cur_tensors

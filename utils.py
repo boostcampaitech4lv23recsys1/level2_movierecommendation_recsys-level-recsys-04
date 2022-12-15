@@ -28,6 +28,13 @@ def check_path(path):
 
 
 def neg_sample(item_set, item_size):
+    """_summary_ : 유저가 안본 아이템 랜덤 샘플링 해주는 함수.
+    Args:
+        item_set (list): 유저의 아이템 리스트
+        item_size (int): args.item_size(max_item + 2)
+    Returns:
+        item(int): item_id (item_set에 없는)  
+    """    
     # 1 <= item < item_size
     item = random.randint(1, item_size - 1)
     # item_set 안에 없는 item이 나올 때 까지 계속 반복

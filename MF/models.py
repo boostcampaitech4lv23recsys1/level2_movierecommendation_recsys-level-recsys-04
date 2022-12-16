@@ -4,7 +4,7 @@ import torch.nn as nn
 
 class MatrixFactorization(nn.Module):
     def __init__(self, args) -> None:
-        super.__init__(MatrixFactorization, self)
+        super(MatrixFactorization, self).__init__()
         self.user_cnt = args.user_cnt
         self.item_cnt = args.item_cnt
         
@@ -18,7 +18,8 @@ class MatrixFactorization(nn.Module):
         user_embedding = self.user_embedding(user_id)
         item_embedding = self.item_embedding(item_id)
 
-        output = torch.dot(user_embedding, item_embedding)
+        output = torch.mul(user_embedding, item_embedding)
+        output = torch.sum(output, axis=1)
         return output
 
 

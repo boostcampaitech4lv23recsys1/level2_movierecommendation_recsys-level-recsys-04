@@ -59,7 +59,7 @@ def main():
     ''' submission '''
     now = datetime.now().astimezone(timezone('Asia/Seoul'))
     now = now.strftime("%Y_%m_%d_%H_%M")
-    df_top_k.to_csv('../submission/' + now, index=False)
+    df_top_k.to_csv('../submission/' + now + '.csv', index=False)
     ''''''
     return
 

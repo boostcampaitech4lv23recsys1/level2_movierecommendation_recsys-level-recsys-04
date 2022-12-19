@@ -1,3 +1,5 @@
+import pandas as pd
+
 import torch
 from torch.utils.data import DataLoader
 
@@ -28,7 +30,7 @@ def main():
     parser.add_argument("--emb_hid_dim", default=32, type=int)
     parser.add_argument("--batch_size", default=16384, type=int)
     parser.add_argument("--lr", default=0.001, type=float)
-    parser.add_argument("--epoch", default=10, type=int)
+    parser.add_argument("--epoch", default=1, type=int)
 
     # neg sample ratio
     parser.add_argument("--neg_ratio", default=1, type=int)
@@ -49,6 +51,11 @@ def main():
     model = MatrixFactorization(args)
     trainer = Trainer(model, dataloader, args)
     trainer.train()
+    df_top_k = trainer.valid(args, df)
+    
+    ''' submission '''
+    df_top_k.to_csv('../submission/', index=False)
+    ''''''
     return
 
 

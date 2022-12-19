@@ -1,3 +1,5 @@
+import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 from tqdm import tqdm
@@ -31,5 +33,39 @@ class Trainer:
 
                 train_loss += cur_loss
 
-            breakpoint()
-        return
+        return self.model
+
+
+    def valid(self, args, df):
+        self.model.eval()
+
+        df_pos = df.loc[df['answer'] == 1]
+
+        user_map = args.user_map
+        item_map = args.item_map
+
+        df_grpby = df_pos.groupby('user')['item'].apply(list)
+
+        user_embedding = self.model.user_embedding.weight
+        item_embedding = self.model.item_embedding.weight
+
+        users = []
+        items = []
+
+        for user, user_emb in tqdm(enumerate(user_embedding)):
+            user_probs = torch.matmul(user_emb, item_embedding.T)
+            user_probs = user_probs.detach().cpu().numpy()
+            user_probs[df_grpby[user]] = -np.inf
+
+            top_k = np.argpartition(user_probs, -10)[-10:]
+
+            user_real = int(user_map[user])
+            item_real = item_map[top_k]
+
+            users.extend([user_real] * 10)
+            items.extend(list(item_real))
+
+        df_top_k = pd.DataFrame({'user': users, 'item': items}, dtype=int)
+
+        breakpoint()
+        return df_top_k

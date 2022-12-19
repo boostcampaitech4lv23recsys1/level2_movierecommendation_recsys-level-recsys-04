@@ -51,7 +51,7 @@ def main():
     model = MatrixFactorization(args)
     trainer = Trainer(model, dataloader, args)
     trainer.train()
-    df_top_k = trainer.valid(args, df)
+    df_top_k = trainer.test(args, df)
     
     ''' submission '''
     df_top_k.to_csv('../submission/', index=False)

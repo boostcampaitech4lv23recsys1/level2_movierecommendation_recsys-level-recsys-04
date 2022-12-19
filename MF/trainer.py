@@ -36,7 +36,7 @@ class Trainer:
         return self.model
 
 
-    def valid(self, args, df):
+    def test(self, args, df):
         self.model.eval()
 
         df_pos = df.loc[df['answer'] == 1]

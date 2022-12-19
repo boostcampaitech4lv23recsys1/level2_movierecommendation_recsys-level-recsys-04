@@ -66,6 +66,4 @@ class Trainer:
             items.extend(list(item_real))
 
         df_top_k = pd.DataFrame({'user': users, 'item': items}, dtype=int)
-
-        breakpoint()
         return df_top_k

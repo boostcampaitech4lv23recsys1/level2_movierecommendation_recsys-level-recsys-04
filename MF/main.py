@@ -1,3 +1,6 @@
+from datetime import datetime
+from pytz import timezone
+
 import pandas as pd
 
 import torch
@@ -54,7 +57,9 @@ def main():
     df_top_k = trainer.test(args, df)
     
     ''' submission '''
-    df_top_k.to_csv('../submission/', index=False)
+    now = datetime.now().astimezone(timezone('Asia/Seoul'))
+    now = now.strftime("%Y_%m_%d_%H_%M")
+    df_top_k.to_csv('../submission/' + now, index=False)
     ''''''
     return
 

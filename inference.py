@@ -88,8 +88,8 @@ def main():
     args.cuda_condition = torch.cuda.is_available() and not args.no_cuda
 
     # 데이터 파일 불러오는 경로 설정합니다.
-    args.data_file = args.data_dir + "train_ratings.csv"
-    item2attribute_file = args.data_dir + args.data_name + "_item2attributes.json"
+    args.data_file = args.data_dir + "train_new.csv" # "train_ratings.csv"
+    item2attribute_file = args.data_dir + "item2attributes.json" # args.data_name + "_item2attributes.json"
 
     # user_seq : 유저마다 따로 아이템 리스트 저장. 2차원 배열, => [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
     # max_item : 가장 큰 item_id, matrix 3개 : 유저-아이템 희소행렬

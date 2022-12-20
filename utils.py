@@ -35,11 +35,11 @@ def neg_sample(item_set, item_size):
     Returns:
         item(int): item_id (item_set에 없는)  
     """    
-    # 1 <= item < item_size
-    item = random.randint(1, item_size - 1)
+    # 1 <= item < item_size, 1부터 하는 이유? 0은 패딩이니깐.
+    item = random.randint(1, item_size - 2) # 1, item_size - 1
     # item_set 안에 없는 item이 나올 때 까지 계속 반복
     while item in item_set:
-        item = random.randint(1, item_size - 1)
+        item = random.randint(1, item_size - 2) # 1, item_size - 1
     return item
 
 

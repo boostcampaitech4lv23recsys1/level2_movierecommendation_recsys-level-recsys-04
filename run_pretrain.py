@@ -117,10 +117,10 @@ def main():
 
     # item2attribute : dict(item_id : genre의 list), attribute_size : genre id의 가장 큰 값
     item2attribute, attribute_size = get_item2attribute_json(item2attribute_file)
-    breakpoint()
+
     # item, genre id의 가장 큰 값 저장합니다.
-    args.item_size = max_item + 2
-    args.mask_id = max_item + 1
+    args.item_size = max_item + 2 # 6808(mask_item_id 까지 포함해서)
+    args.mask_id = max_item + 1 # 6807
     args.attribute_size = attribute_size + 1
 
     args.item2attribute = item2attribute
@@ -140,7 +140,6 @@ def main():
         # long_sequence : long_sequence : 1차원 아이템 id 리스트 => [1번 유저 item_id 리스트, 2번 유저 item_id 리스트]
         pretrain_dataset = PretrainDataset(args, user_seq, long_sequence)
         # RandomSampler : 데이터 셋을 랜덤하게 섞어줍니다. 인덱스를 반환해줍니다.
-        breakpoint()
         pretrain_sampler = RandomSampler(pretrain_dataset)
         # 모델 학습을 하기 위한 데이터 로더를 만듭니다. 랜덤으로 섞고 배치 단위(defalut : 256)로 출력합니다.
         pretrain_dataloader = DataLoader(

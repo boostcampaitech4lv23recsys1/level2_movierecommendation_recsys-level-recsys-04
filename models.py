@@ -9,7 +9,7 @@ class S3RecModel(nn.Module):
         super(S3RecModel, self).__init__()
         # item embedding
         self.item_embeddings = nn.Embedding(
-            args.item_size, args.hidden_size, padding_idx=0
+            args.item_size, args.hidden_size, padding_idx=0 # hidden_size : 64(defalut)
         )
         # attribute embedding ("genre")
         self.attribute_embeddings = nn.Embedding(
@@ -18,7 +18,8 @@ class S3RecModel(nn.Module):
         # positional embedding
         # label 개수 <= max_seq_length
         self.position_embeddings = nn.Embedding(args.max_seq_length, args.hidden_size)
-        # 
+        # 트랜스포머의 일부 구성요소 시용한 인코더(사실은 디코더와 유사하다고 함.)
+        # modules에 빡세게 구현되어있음.
         self.item_encoder = Encoder(args)
         # layer normalization
         self.LayerNorm = LayerNorm(args.hidden_size, eps=1e-12)
@@ -40,7 +41,7 @@ class S3RecModel(nn.Module):
         """
         :param sequence_output: [B L H]
         :param attribute_embedding: [arribute_num H]
-        :return: scores [B*L tag_num]
+        :return: scores [B*L tag_num] (각 영화마다 모든 장르 예측 값 배출)
         """
         sequence_output = self.aap_norm(sequence_output)  # [B L H]
         sequence_output = sequence_output.view(
@@ -57,6 +58,7 @@ class S3RecModel(nn.Module):
         :param target_item: [B L H]
         :return: scores [B*L]
         """
+        # mip_norm : Linear hidden => hidden
         sequence_output = self.mip_norm(
             sequence_output.view([-1, self.args.hidden_size])
         )  # [B*L H]
@@ -87,13 +89,21 @@ class S3RecModel(nn.Module):
 
     #
     def add_position_embedding(self, sequence):
-
+        """_summary_
+        입력 값에서 아이템 임베딩을 해준 뒤 포지션 임베딩을 더해줍니다.
+        Args:
+            sequence (tenser): (batch * max_len), 영화 id 기록(마스킹 중간에 되있음) 
+        Returns:
+            sequence_emb (tenser): (batch * max_len * hidden_size)
+        """        
         seq_length = sequence.size(1)
         position_ids = torch.arange(
             seq_length, dtype=torch.long, device=sequence.device
         )
         position_ids = position_ids.unsqueeze(0).expand_as(sequence)
+        # 아이템 임베딩 먼저하고 (B * L => B * L * H)
         item_embeddings = self.item_embeddings(sequence)
+        # 포지션 임베딩 진행.
         position_embeddings = self.position_embeddings(position_ids)
         sequence_emb = item_embeddings + position_embeddings
         sequence_emb = self.LayerNorm(sequence_emb)
@@ -126,13 +136,15 @@ class S3RecModel(nn.Module):
         # Encode masked sequence
 
         sequence_emb = self.add_position_embedding(masked_item_sequence)
+        # 패딩(0)값에 엄청난 마이너스 값(-1e8) 넣습니다.
         sequence_mask = (masked_item_sequence == 0).float() * -1e8
-        sequence_mask = torch.unsqueeze(torch.unsqueeze(sequence_mask, 1), 1)
+        # sequence_mask : [B * L] => [B * 1 * 1 * L]
+        sequence_mask = torch.unsqueeze(torch.unsqueeze(sequence_mask, 1), 1) 
 
         encoded_layers = self.item_encoder(
             sequence_emb, sequence_mask, output_all_encoded_layers=True
         )
-        # [B L H]
+        # [B L H], sequence_output : encoder 거친 최종 아웃풋.
         sequence_output = encoded_layers[-1]
 
         attribute_embeddings = self.attribute_embeddings.weight
@@ -140,10 +152,12 @@ class S3RecModel(nn.Module):
         aap_score = self.associated_attribute_prediction(
             sequence_output, attribute_embeddings
         )
+        # aap_score : [B * L, attribute_size]
+        # attributes : [B, L, attribute_size] => [B * L, attribute_size]
         aap_loss = self.criterion(
             aap_score, attributes.view(-1, self.args.attribute_size).float()
         )
-        # only compute loss at non-masked position
+        # only compute loss at non-masked position(마스킹이거나 패딩인 아이템은 계산 제외)
         aap_mask = (masked_item_sequence != self.args.mask_id).float() * (
             masked_item_sequence != 0
         ).float()
@@ -152,12 +166,16 @@ class S3RecModel(nn.Module):
         # MIP
         pos_item_embs = self.item_embeddings(pos_items)
         neg_item_embs = self.item_embeddings(neg_items)
+        # sequence_output : 트랜스포머를 통해 주변 영화와의 상호작용을 고려한 값.
+        # pos_item_embs, neg_item_embs : 순수 그 영화의 임베딩.
+        # 만약 네거티브 샘플링 된 영화라면 output이 원래 영화 임베딩과 멀어질 것을 기대.
         pos_score = self.masked_item_prediction(sequence_output, pos_item_embs)
         neg_score = self.masked_item_prediction(sequence_output, neg_item_embs)
         mip_distance = torch.sigmoid(pos_score - neg_score)
         mip_loss = self.criterion(
             mip_distance, torch.ones_like(mip_distance, dtype=torch.float32)
         )
+        # 마스킹 된 부분만 로스를 구하겠다.
         mip_mask = (masked_item_sequence == self.args.mask_id).float()
         mip_loss = torch.sum(mip_loss * mip_mask.flatten())
 

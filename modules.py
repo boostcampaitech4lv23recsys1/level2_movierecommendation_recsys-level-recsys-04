@@ -97,7 +97,7 @@ class SelfAttention(nn.Module):
         self.all_head_size = self.num_attention_heads * self.attention_head_size
 
         # generate Query, Key, Value vectors with nn.Linear
-        # dimension : hidden_size -> all_head_size
+        # dimension : hidden_size -> all_head_size(hidden_size와 동일.)
         self.query = nn.Linear(args.hidden_size, self.all_head_size)
         self.key = nn.Linear(args.hidden_size, self.all_head_size)
         self.value = nn.Linear(args.hidden_size, self.all_head_size)
@@ -114,18 +114,32 @@ class SelfAttention(nn.Module):
         self.out_dropout = nn.Dropout(args.hidden_dropout_prob)
 
     def transpose_for_scores(self, x):
+        """
+        summary : 차원을 바꾸는 함수입니다. hidden 값을 2분할합니다.
+        Args: [B, L, H]
+        Returns: [B, 2, L, H // 2]
+        """        
         new_x_shape = x.size()[:-1] + (
-            self.num_attention_heads,
-            self.attention_head_size,
+            self.num_attention_heads, # defalut = 2
+            self.attention_head_size, # hidden_size // num_attention_head = 32(defalut)
         )
         x = x.view(*new_x_shape)
         return x.permute(0, 2, 1, 3)
 
     def forward(self, input_tensor, attention_mask):
+        """_summary_
+        Args:
+            input_tensor (tenser): (batch * max_len * hidden_size)
+            attention_mask (tenser): (batch * 1 * 1 * max_len)
+
+        Returns:
+            hidden_states (tensor): (batch * max_len * hidden_size)
+        """        
         mixed_query_layer = self.query(input_tensor)
         mixed_key_layer = self.key(input_tensor)
         mixed_value_layer = self.value(input_tensor)
 
+        # [B, L, H] => [B, 2, L, H // 2], hidden 값을 2분할합니다.
         query_layer = self.transpose_for_scores(mixed_query_layer)
         key_layer = self.transpose_for_scores(mixed_key_layer)
         value_layer = self.transpose_for_scores(mixed_value_layer)
@@ -133,10 +147,11 @@ class SelfAttention(nn.Module):
         # Take the dot product between "query" and "key" to get the raw attention scores.
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
 
-        attention_scores = attention_scores / math.sqrt(self.attention_head_size)
+        # attention_head_size = hidden // 2, [B, 2, L, H // 2] => [B, 2, L, L]
+        attention_scores = attention_scores / math.sqrt(self.attention_head_size) 
         # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
-        # [batch_size heads seq_len seq_len] scores
-        # [batch_size 1 1 seq_len]
+        # [batch_size, heads, seq_len, seq_len] scores
+        # [batch_size, 1, 1, seq_len], 패딩 값은 마이너스 거의 무한대.
         attention_scores = attention_scores + attention_mask
 
         # Normalize the attention scores to probabilities.
@@ -145,12 +160,18 @@ class SelfAttention(nn.Module):
         # seem a bit unusual, but is taken from the original Transformer paper.
         # Fixme
         attention_probs = self.attn_dropout(attention_probs)
+        # [B, 2, L, L] * [B, 2, L, H // 2] => [B, 2, L, H // 2]
         context_layer = torch.matmul(attention_probs, value_layer)
+        # [B, 2, L, H // 2] => [B, L, 2, H // 2]
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
+        # [B, L, H] shape 저장.
         new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
+        # [B, L, 2, H // 2] => [B, L, H]
         context_layer = context_layer.view(*new_context_layer_shape)
+        # dense : Linear H => H
         hidden_states = self.dense(context_layer)
         hidden_states = self.out_dropout(hidden_states)
+        # Add + Norm
         hidden_states = self.LayerNorm(hidden_states + input_tensor)
 
         return hidden_states
@@ -160,8 +181,8 @@ class Intermediate(nn.Module):
     def __init__(self, args):
         super(Intermediate, self).__init__()
         self.dense_1 = nn.Linear(args.hidden_size, args.hidden_size * 4)
-        if isinstance(args.hidden_act, str):
-            self.intermediate_act_fn = ACT2FN[args.hidden_act]
+        if isinstance(args.hidden_act, str): # hidden_act : gelu(defalut)
+            self.intermediate_act_fn = ACT2FN[args.hidden_act] 
         else:
             self.intermediate_act_fn = args.hidden_act
 
@@ -198,7 +219,7 @@ class Encoder(nn.Module):
         super(Encoder, self).__init__()
         layer = Layer(args)
         self.layer = nn.ModuleList(
-            [copy.deepcopy(layer) for _ in range(args.num_hidden_layers)]
+            [copy.deepcopy(layer) for _ in range(args.num_hidden_layers)] # num_hidden_layers : 2(default)
         )
 
     def forward(self, hidden_states, attention_mask, output_all_encoded_layers=True):

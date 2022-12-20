@@ -11,7 +11,7 @@ from trainers import PretrainTrainer
 from utils import (
     EarlyStopping,
     check_path,
-    get_item2attribute_json,
+    get_item2attribute_json, 
     get_user_seqs_long,
     set_seed,
 )
@@ -75,10 +75,10 @@ def main():
     # sequence에서 item을 masking 처리할 확률 (=negative case로 처리할 확률) (datasets.py)
     # 이 값이 커지면, negative item 비율이 늘어남 (1일 경우 모두 negative)
     parser.add_argument("--mask_p", type=float, default=0.2, help="mask probability")
-    parser.add_argument("--aap_weight", type=float, default=0.2, help="aap loss weight")
-    parser.add_argument("--mip_weight", type=float, default=1.0, help="mip loss weight")
-    parser.add_argument("--map_weight", type=float, default=1.0, help="map loss weight")
-    parser.add_argument("--sp_weight", type=float, default=0.5, help="sp loss weight")
+    parser.add_argument("--aap_weight", type=float, default=1, help="aap loss weight")
+    parser.add_argument("--mip_weight", type=float, default=0, help="mip loss weight") # 1.0
+    parser.add_argument("--map_weight", type=float, default=0, help="map loss weight") # 1.0
+    parser.add_argument("--sp_weight", type=float, default=0, help="sp loss weight") # 0.5
 
     # 옵티마이저 관련 하이퍼파라미터
     parser.add_argument(
@@ -108,8 +108,8 @@ def main():
     args.cuda_condition = torch.cuda.is_available() and not args.no_cuda
 
     # 데이터 파일 불러오는 경로 설정합니다.
-    args.data_file = args.data_dir + "train_ratings.csv"
-    item2attribute_file = args.data_dir + args.data_name + "_item2attributes.json"
+    args.data_file = args.data_dir + "train_new.csv" # "train_ratings.csv"
+    item2attribute_file = args.data_dir + "item2attributes.json" # args.data_name + "_item2attributes.json"
     # user_seq : 2차원 아이템 id 리스트, max_item : 가장 높은 아이템 id, long_sequence : 1차원 아이템 id 리스트.
     # user_seq 예시 : [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
     # 자세한건 get_user_seqs_long 함수 내에 써놨습니다.
@@ -117,7 +117,7 @@ def main():
 
     # item2attribute : dict(item_id : genre의 list), attribute_size : genre id의 가장 큰 값
     item2attribute, attribute_size = get_item2attribute_json(item2attribute_file)
-
+    breakpoint()
     # item, genre id의 가장 큰 값 저장합니다.
     args.item_size = max_item + 2
     args.mask_id = max_item + 1
@@ -140,6 +140,7 @@ def main():
         # long_sequence : long_sequence : 1차원 아이템 id 리스트 => [1번 유저 item_id 리스트, 2번 유저 item_id 리스트]
         pretrain_dataset = PretrainDataset(args, user_seq, long_sequence)
         # RandomSampler : 데이터 셋을 랜덤하게 섞어줍니다. 인덱스를 반환해줍니다.
+        breakpoint()
         pretrain_sampler = RandomSampler(pretrain_dataset)
         # 모델 학습을 하기 위한 데이터 로더를 만듭니다. 랜덤으로 섞고 배치 단위(defalut : 256)로 출력합니다.
         pretrain_dataloader = DataLoader(

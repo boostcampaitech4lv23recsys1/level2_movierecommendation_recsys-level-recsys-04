@@ -94,7 +94,7 @@ def main():
     # user_seq : 유저마다 따로 아이템 리스트 저장. 2차원 배열, => [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
     # max_item : 가장 큰 item_id, matrix 3개 : 유저-아이템 희소행렬
     # submission_rating_matrix : 유저-아이템 희소행렬, 유저마다 영화 시청기록은 빼지 않음.
-    user_seq, max_item, _, _, submission_rating_matrix = get_user_seqs(args.data_file)
+    user_seq, max_item, _, submission_rating_matrix = get_user_seqs(args.data_file)
 
     # item2attribute : dict(item_id : genre의 list), attribute_size : genre id의 가장 큰 값
     item2attribute, attribute_size = get_item2attribute_json(item2attribute_file)
@@ -125,7 +125,7 @@ def main():
 
     model = S3RecModel(args=args)
 
-    trainer = FinetuneTrainer(model, None, None, None, submission_dataloader, args)
+    trainer = FinetuneTrainer(model, None, None, submission_dataloader, args)
 
     # 트레이너에 load 함수 사용해 모델 불러옵니다.
     # model.load_state_dict(torch.load(args.checkpoint_path))

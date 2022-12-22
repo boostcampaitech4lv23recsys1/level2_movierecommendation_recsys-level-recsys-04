@@ -61,24 +61,24 @@ def main():
     parser.add_argument(
         "--batch_size", type=int, default=256, help="number of batch_size"
     )
-    parser.add_argument("--epochs", type=int, default=200, help="number of epochs")
+    parser.add_argument("--epochs", type=int, default=10, help="number of epochs")
     parser.add_argument("--no_cuda", action="store_true")
     parser.add_argument("--log_freq", type=int, default=1, help="per epoch print res")
     parser.add_argument("--seed", default=42, type=int)
 
     # pre train args, 프리트레이너 하이퍼파라미터
     parser.add_argument(
-        "--pre_epochs", type=int, default=300, help="number of pre_train epochs"
+        "--pre_epochs", type=int, default=100, help="number of pre_train epochs"
     )
     parser.add_argument("--pre_batch_size", type=int, default=512)
 
     # sequence에서 item을 masking 처리할 확률 (=negative case로 처리할 확률) (datasets.py)
     # 이 값이 커지면, negative item 비율이 늘어남 (1일 경우 모두 negative)
     parser.add_argument("--mask_p", type=float, default=0.2, help="mask probability")
-    parser.add_argument("--aap_weight", type=float, default=1, help="aap loss weight")
-    parser.add_argument("--mip_weight", type=float, default=0, help="mip loss weight") # 1.0
+    parser.add_argument("--aap_weight", type=float, default=0.5, help="aap loss weight") # 0.2
+    parser.add_argument("--mip_weight", type=float, default=0.5, help="mip loss weight") # 1.0
     parser.add_argument("--map_weight", type=float, default=0, help="map loss weight") # 1.0
-    parser.add_argument("--sp_weight", type=float, default=0, help="sp loss weight") # 0.5
+    parser.add_argument("--sp_weight", type=float, default=0.5, help="sp loss weight") # 0.5
 
     # 옵티마이저 관련 하이퍼파라미터
     parser.add_argument(
@@ -128,7 +128,7 @@ def main():
     # S3RecModel 모델을 불러옵니다. (models.py 내 존재)
     model = S3RecModel(args=args)
     # pre트레이너 클래스를 불러옵니다. (trainers.py 내 존재)
-    trainer = PretrainTrainer(model, None, None, None, None, args)
+    trainer = PretrainTrainer(model, None, None, None, args)
 
     # EarlyStopping 클래스를 불러옵니다. (utils.py 내 존재)
     early_stopping = EarlyStopping(args.checkpoint_path, patience=10, verbose=True)
@@ -147,7 +147,6 @@ def main():
         )
         # trainer 내 pretrain 함수를 실행. 학습을 수행합니다.
         losses = trainer.pretrain(epoch, pretrain_dataloader)
-
         ## comparing `sp_loss_avg``
         # early_stopping 여부를 점검하여 에포크를 멈출지 살펴봅니다.
         early_stopping(np.array([-losses["sp_loss_avg"]]), trainer.model)

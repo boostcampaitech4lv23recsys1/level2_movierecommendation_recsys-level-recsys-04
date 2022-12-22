@@ -29,13 +29,9 @@ class PretrainDataset(Dataset):
         """
         # self.user_seq : [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
         for seq in self.user_seq: # seq : 유저마다 item_id 리스트. 
-            # ex) max_len = 3일 때
-            # [3, 5, 3, 2, 6, 9, 1, 5] -> [2, 6, 9]
-            # keeping same as train set(valid set은 뒤에 2개로 진행하기 때문.)
-            input_ids = seq[-(self.max_len + 2) : -2]  
-            # ex) [2, 6, 9] -> [2], [2, 6], [2, 6, 9]
-            for i in range(len(input_ids)):
-                self.part_sequence.append(input_ids[: i + 1])
+            lens = (len(seq[:-1]) // 50) + 1
+            for i in range(lens):
+                self.part_sequence.append(seq[-(i+1)*50 - 1: -i * 50 - 1])
 
     def __len__(self):
         # part_sequence 길이 반환
@@ -60,7 +56,7 @@ class PretrainDataset(Dataset):
                 # item_set 안에 없는 item (negative sample) random하게 뽑아서 neg_items에 추가
                 neg_items.append(neg_sample(item_set, self.args.item_size)) # neg_sample(utils.py)
             else:  # prob가 mask_p 보다 크거나 같을 경우
-                masked_item_sequence.append(item)
+                masked_item_sequence.append(item) 
                 neg_items.append(item)
 
         # add mask at the last position (맨 뒤 한 값은 무조건 마스킹.)
@@ -207,17 +203,13 @@ class SASRecDataset(Dataset):
         items = self.user_seq[index]
 
         # check data_type
-        assert self.data_type in {"train", "valid", "test", "submission"}
+        assert self.data_type in {"train", "valid", "submission"}
 
         # [0, 1, 2, 3, 4, 5, 6]
         # train [0, 1, 2, 3]
         # target [1, 2, 3, 4]
 
-        # valid [0, 1, 2, 3, 4]
-        # target [1, 2, 3, 4, 5]
-        # answer [5]
-
-        # test [0, 1, 2, 3, 4, 5]
+        # valid [0, 1, 2, 3, 4, 5]
         # target [1, 2, 3, 4, 5, 6]
         # answer [6]
 
@@ -225,16 +217,11 @@ class SASRecDataset(Dataset):
         # answer None
 
         if self.data_type == "train":
-            input_ids = items[:-3]
-            target_pos = items[1:-2]
+            input_ids = items[:-2]
+            target_pos = items[1:-1]
             answer = [0]  # no use
 
         elif self.data_type == "valid":
-            input_ids = items[:-2]
-            target_pos = items[1:-1]
-            answer = [items[-2]]
-
-        elif self.data_type == "test":
             input_ids = items[:-1]
             target_pos = items[1:]
             answer = [items[-1]]

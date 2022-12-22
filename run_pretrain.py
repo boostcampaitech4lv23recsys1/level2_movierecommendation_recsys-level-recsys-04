@@ -54,14 +54,10 @@ def main():
     # initialize model weight -> (mean=0, std=initializer_range) 로 초기화
     parser.add_argument("--initializer_range", type=float, default=0.02)
     # 최대 시퀀셜 길이 설정 (datasets.py)
-    parser.add_argument("--max_seq_length", default=50, type=int)
+    parser.add_argument("--max_seq_length", default=100, type=int)
 
     # train args, 트레이너 하이퍼파라미터
     parser.add_argument("--lr", type=float, default=0.001, help="learning rate of adam")
-    parser.add_argument(
-        "--batch_size", type=int, default=256, help="number of batch_size"
-    )
-    parser.add_argument("--epochs", type=int, default=10, help="number of epochs")
     parser.add_argument("--no_cuda", action="store_true")
     parser.add_argument("--log_freq", type=int, default=1, help="per epoch print res")
     parser.add_argument("--seed", default=42, type=int)

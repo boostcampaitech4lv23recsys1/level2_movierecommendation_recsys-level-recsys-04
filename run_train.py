@@ -50,14 +50,14 @@ def main():
     # 모델 파라미터 initializer 범위 설정? (모델 본 사람이 채워줘.)
     parser.add_argument("--initializer_range", type=float, default=0.02)
     # 최대 시퀀셜 길이 설정
-    parser.add_argument("--max_seq_length", default=50, type=int)
+    parser.add_argument("--max_seq_length", default=100, type=int)
 
     # train args, 트레이너 하이퍼파라미터
     parser.add_argument("--lr", type=float, default=0.001, help="learning rate of adam")
     parser.add_argument(
         "--batch_size", type=int, default=256, help="number of batch_size"
     )
-    parser.add_argument("--epochs", type=int, default=200, help="number of epochs")
+    parser.add_argument("--epochs", type=int, default=50, help="number of epochs") # 200
     parser.add_argument("--no_cuda", action="store_true")
     parser.add_argument("--log_freq", type=int, default=1, help="per epoch print res")
     parser.add_argument("--seed", default=42, type=int)
@@ -95,9 +95,9 @@ def main():
     
     # user_seq : 유저마다 따로 아이템 리스트 저장. 2차원 배열, => [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
     # max_item : 가장 큰 item_id, matrix 3개 : 유저-아이템 희소행렬
-    # valid : 유저마다 마지막 2개 영화 시청기록 뺌, test : 유저마다 마지막 1개 영화 시청기록 뺌,
+    # valid : 유저마다 마지막 1개 영화 시청기록 뺌
     # 자세한건 get_user_seqs 함수(utils.py) 내에 써놨습니다.
-    user_seq, max_item, valid_rating_matrix, test_rating_matrix, _ = get_user_seqs(
+    user_seq, max_item, valid_rating_matrix, _ = get_user_seqs(
         args.data_file
     )
 
@@ -117,7 +117,7 @@ def main():
     # item2attribute : dict(item_id : genre의 list)
     args.item2attribute = item2attribute
     # set item score in train set to `0` in validation
-    # valid_rating_matrix : 유저마다 마지막 2개 영화 시청기록을 뺀 희소행렬.
+    # valid_rating_matrix : 유저마다 마지막 1개 영화 시청기록을 뺀 희소행렬.
     args.train_matrix = valid_rating_matrix
 
     # 모델 기록용 파일 경로 저장합니다.
@@ -141,20 +141,13 @@ def main():
         eval_dataset, sampler=eval_sampler, batch_size=args.batch_size
     )
 
-    # test도 마찬가지 입니다. data_type만 test로 설정되있습니다.
-    test_dataset = SASRecDataset(args, user_seq, data_type="test")
-    test_sampler = SequentialSampler(test_dataset)
-    test_dataloader = DataLoader(
-        test_dataset, sampler=test_sampler, batch_size=args.batch_size
-    )
-
     # S3RecModel 모델을 불러옵니다. (models.py 내 존재)
     model = S3RecModel(args=args)
 
     # Finetune 트레이너 클래스를 불러옵니다. (trainers.py 내 존재)
     # 트레이너에 모델, train, eval, test 데이터 로더 넣어줍니다. 
     trainer = FinetuneTrainer(
-        model, train_dataloader, eval_dataloader, test_dataloader, None, args
+        model, train_dataloader, eval_dataloader, None, args
     )
 
     # 프리트레인 모델 사용했는지 여부 출력.
@@ -172,23 +165,24 @@ def main():
         print("Not using pretrained model. The Model is same as SASRec")
 
     # EarlyStopping 클래스를 불러옵니다. (utils.py 내 존재)
+    # valid를 생략하면 모델 학습 속도가 엄청 빨라집니다.
     early_stopping = EarlyStopping(args.checkpoint_path, patience=10, verbose=True)
     for epoch in range(args.epochs):
         trainer.train(epoch)
 
-        scores, _ = trainer.valid(epoch)
+        if epoch % 10 == 9:
+            scores, _ = trainer.valid(epoch)
+        
+        # early_stopping(np.array(scores[-1:]), trainer.model)
+        # if early_stopping.early_stop:
+        #     print("Early stopping")
+        #     break
 
-        early_stopping(np.array(scores[-1:]), trainer.model)
-        if early_stopping.early_stop:
-            print("Early stopping")
-            break
-
-    trainer.args.train_matrix = test_rating_matrix
-    print("---------------Change to test_rating_matrix!-------------------")
     # load the best model
-    trainer.model.load_state_dict(torch.load(args.checkpoint_path))
-    scores, result_info = trainer.test(0)
-    print(result_info)
+    #trainer.model.load_state_dict(torch.load(args.checkpoint_path))
+    torch.save(trainer.model.state_dict(), args.checkpoint_path)
+    #scores, result_info = trainer.test(0)
+    #print(result_info)
 
 
 if __name__ == "__main__":

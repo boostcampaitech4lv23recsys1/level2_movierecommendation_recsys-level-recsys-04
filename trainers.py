@@ -14,7 +14,6 @@ class Trainer:
         model,
         train_dataloader,
         eval_dataloader,
-        test_dataloader,
         submission_dataloader,
         args,
     ):
@@ -35,7 +34,6 @@ class Trainer:
         # Setting the train and test data loader
         self.train_dataloader = train_dataloader
         self.eval_dataloader = eval_dataloader
-        self.test_dataloader = test_dataloader
         self.submission_dataloader = submission_dataloader
 
         # betas : Adam 옵티마이저 하이퍼 파라미터
@@ -64,9 +62,6 @@ class Trainer:
 
     def valid(self, epoch):
         return self.iteration(epoch, self.eval_dataloader, mode="valid")
-
-    def test(self, epoch):
-        return self.iteration(epoch, self.test_dataloader, mode="test")
 
     def submission(self, epoch):
         return self.iteration(epoch, self.submission_dataloader, mode="submission")
@@ -132,7 +127,6 @@ class PretrainTrainer(Trainer):
         model,
         train_dataloader,
         eval_dataloader,
-        test_dataloader,
         submission_dataloader,
         args,
     ):
@@ -140,7 +134,6 @@ class PretrainTrainer(Trainer):
             model,
             train_dataloader,
             eval_dataloader,
-            test_dataloader,
             submission_dataloader,
             args,
         )
@@ -232,7 +225,6 @@ class FinetuneTrainer(Trainer):
         model,
         train_dataloader,
         eval_dataloader,
-        test_dataloader,
         submission_dataloader,
         args,
     ):
@@ -240,7 +232,6 @@ class FinetuneTrainer(Trainer):
             model,
             train_dataloader,
             eval_dataloader,
-            test_dataloader,
             submission_dataloader,
             args,
         )
@@ -305,7 +296,8 @@ class FinetuneTrainer(Trainer):
 
                 rating_pred = rating_pred.cpu().data.numpy().copy()
                 batch_user_index = user_ids.cpu().numpy()
-                rating_pred[self.args.train_matrix[batch_user_index].toarray() > 0] = 0
+                rating_pred[self.args.train_matrix[batch_user_index].toarray() > 0] = -np.inf
+                rating_pred[:, -1] = -np.inf
 
                 ind = np.argpartition(rating_pred, -10)[:, -10:]
 

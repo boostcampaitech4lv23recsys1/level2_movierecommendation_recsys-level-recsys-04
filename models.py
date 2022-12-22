@@ -105,8 +105,11 @@ class S3RecModel(nn.Module):
         item_embeddings = self.item_embeddings(sequence)
         # 포지션 임베딩 진행.
         position_embeddings = self.position_embeddings(position_ids)
+        # 아이템 임베딩 + 포지션 임베딩
         sequence_emb = item_embeddings + position_embeddings
+        # Layer Nomralization
         sequence_emb = self.LayerNorm(sequence_emb)
+        # Dropout
         sequence_emb = self.dropout(sequence_emb)
 
         return sequence_emb

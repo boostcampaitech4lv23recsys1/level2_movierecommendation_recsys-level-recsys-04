@@ -66,6 +66,7 @@ class PretrainDataset(Dataset):
         # Segment Prediction
         if len(sequence) < 2:  # sequence 길이 2보다 작은 경우
             masked_segment_sequence = sequence
+
             pos_segment = sequence
             neg_segment = sequence
         else:  # sequence 길이 2 이상인 경우
@@ -142,14 +143,12 @@ class PretrainDataset(Dataset):
         ''' 
         attributes = []
         for item in pos_items:
-            # 이거 (attribute_size+1) 로 해줘야하지 않나?
-            # 제일 큰 genre_id 값이 3이면, [0, 0, 0, 1] 되야 하니까? => 리스트 인덱싱을 0부터 채우니깐 괜찮은듯?
             attribute = [0] * self.args.attribute_size
             try:
                 now_attribute = self.args.item2attribute[str(item)]
                 for a in now_attribute: # 속성이 여러개인 경우도 고려.
                     attribute[a] = 1
-            except: # 속성이 없을수도. (모든 아이템은 다 속성이 1개는 있으나 mask_id는 속성이 없음.)
+            except: # 속성이 없을수도. (모든 아이템은 다 속성이 1개는 있으나 mask_id와 padding 값 0은 속성이 없음.)
                 pass
             attributes.append(attribute)
 

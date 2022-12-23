@@ -15,6 +15,7 @@ class S3RecModel(nn.Module):
         self.attribute_embeddings = nn.Embedding(
             args.attribute_size, args.hidden_size, padding_idx=0
         )
+        breakpoint()
         # positional embedding
         # label 개수 <= max_seq_length
         self.position_embeddings = nn.Embedding(args.max_seq_length, args.hidden_size)
@@ -83,11 +84,10 @@ class S3RecModel(nn.Module):
         :param segment: [B H]
         :return:
         """
-        context = self.sp_norm(context)
+        context = self.sp_norm(context)  # [B H]
         score = torch.mul(context, segment)  # [B H]
         return torch.sigmoid(torch.sum(score, dim=-1))  # [B]
 
-    #
     def add_position_embedding(self, sequence):
         """_summary_
         입력 값에서 아이템 임베딩을 해준 뒤 포지션 임베딩을 더해줍니다.
@@ -96,21 +96,30 @@ class S3RecModel(nn.Module):
         Returns:
             sequence_emb (tenser): (batch * max_len * hidden_size)
         """        
-        seq_length = sequence.size(1)
+        seq_length = sequence.size(1)  # max_len
+        '''
+        tensor([ 0, 1, ..., seq_length-1 ], device='cuda:0')
+        '''
         position_ids = torch.arange(
             seq_length, dtype=torch.long, device=sequence.device
         )
+        '''
+        [B * L]
+        tensor([[ 0, 1, ..., seq_length-1 ],
+        [...] * (batch_szie-2),
+        [ 0, 1, ..., seq_length-1 ]], device='cuda:0')
+        '''
         position_ids = position_ids.unsqueeze(0).expand_as(sequence)
         # 아이템 임베딩 먼저하고 (B * L => B * L * H)
         item_embeddings = self.item_embeddings(sequence)
-        # 포지션 임베딩 진행.
+        # 포지션 임베딩 진행. (B * L => B * L * H)
         position_embeddings = self.position_embeddings(position_ids)
         # 아이템 임베딩 + 포지션 임베딩
         sequence_emb = item_embeddings + position_embeddings
-        # Layer Nomralization
+        # Layer Nomralization [B * L * H]
         sequence_emb = self.LayerNorm(sequence_emb)
-        # Dropout
-        sequence_emb = self.dropout(sequence_emb)
+        # Dropout (결과 tensor 값들 일부 0으로 바뀜)
+        sequence_emb = self.dropout(sequence_emb)  # [B * L * H]
 
         return sequence_emb
 
@@ -138,10 +147,10 @@ class S3RecModel(nn.Module):
         """    
         # Encode masked sequence
 
-        sequence_emb = self.add_position_embedding(masked_item_sequence)
+        sequence_emb = self.add_position_embedding(masked_item_sequence)  # [B, L, H]
         # 패딩(0)값에 엄청난 마이너스 값(-1e8) 넣습니다.
-        sequence_mask = (masked_item_sequence == 0).float() * -1e8
-        # sequence_mask : [B * L] => [B * 1 * 1 * L]
+        sequence_mask = (masked_item_sequence == 0).float() * -1e8  # [B, L]
+        # sequence_mask : [B * L] => [B * 1 * L] => [B * 1 * 1 * L]
         sequence_mask = torch.unsqueeze(torch.unsqueeze(sequence_mask, 1), 1) 
 
         encoded_layers = self.item_encoder(
@@ -150,7 +159,8 @@ class S3RecModel(nn.Module):
         # [B L H], sequence_output : encoder 거친 최종 아웃풋.
         sequence_output = encoded_layers[-1]
 
-        attribute_embeddings = self.attribute_embeddings.weight
+        attribute_embeddings = self.attribute_embeddings.weight  # [attribute_size, H]
+
         # AAP
         aap_score = self.associated_attribute_prediction(
             sequence_output, attribute_embeddings
@@ -159,44 +169,47 @@ class S3RecModel(nn.Module):
         # attributes : [B, L, attribute_size] => [B * L, attribute_size]
         aap_loss = self.criterion(
             aap_score, attributes.view(-1, self.args.attribute_size).float()
-        )
+        )  # [B * L, attribute_size]
         # only compute loss at non-masked position(마스킹이거나 패딩인 아이템은 계산 제외)
         aap_mask = (masked_item_sequence != self.args.mask_id).float() * (
             masked_item_sequence != 0
-        ).float()
-        aap_loss = torch.sum(aap_loss * aap_mask.flatten().unsqueeze(-1))
+        ).float()  # [B, L]
+        # [B * L, attribute_size] * [B * L, 1]
+        aap_loss = torch.sum(aap_loss * aap_mask.flatten().unsqueeze(-1))  # tensor(124563.9688, device='cuda:0', grad_fn=<SumBackward0>)
 
         # MIP
         pos_item_embs = self.item_embeddings(pos_items)
         neg_item_embs = self.item_embeddings(neg_items)
-        # sequence_output : 트랜스포머를 통해 주변 영화와의 상호작용을 고려한 값.
-        # pos_item_embs, neg_item_embs : 순수 그 영화의 임베딩.
+        # sequence_output : 트랜스포머를 통해 주변 영화와의 상호작용을 고려한 값.  [B, L, H]
+        # pos_item_embs, neg_item_embs : 순수 그 영화의 임베딩.  [B, L, H]
         # 만약 네거티브 샘플링 된 영화라면 output이 원래 영화 임베딩과 멀어질 것을 기대.
-        pos_score = self.masked_item_prediction(sequence_output, pos_item_embs)
-        neg_score = self.masked_item_prediction(sequence_output, neg_item_embs)
-        mip_distance = torch.sigmoid(pos_score - neg_score)
+        pos_score = self.masked_item_prediction(sequence_output, pos_item_embs)  # [B*L]
+        neg_score = self.masked_item_prediction(sequence_output, neg_item_embs)  # [B*L]
+        mip_distance = torch.sigmoid(pos_score - neg_score)  # [B*L]
         mip_loss = self.criterion(
             mip_distance, torch.ones_like(mip_distance, dtype=torch.float32)
-        )
+        )  # [B*L]
         # 마스킹 된 부분만 로스를 구하겠다.
-        mip_mask = (masked_item_sequence == self.args.mask_id).float()
-        mip_loss = torch.sum(mip_loss * mip_mask.flatten())
+        mip_mask = (masked_item_sequence == self.args.mask_id).float()  # [B, L]
+        mip_loss = torch.sum(mip_loss * mip_mask.flatten())  # tensor(2056.0708, device='cuda:0', grad_fn=<SumBackward0>)
 
         # MAP
         map_score = self.masked_attribute_prediction(
-            sequence_output, attribute_embeddings
-        )
+            sequence_output, attribute_embeddings  # [B L H], [attribute_size H]
+        )  # [B*L attribute_size]
         map_loss = self.criterion(
             map_score, attributes.view(-1, self.args.attribute_size).float()
-        )
-        map_mask = (masked_item_sequence == self.args.mask_id).float()
-        map_loss = torch.sum(map_loss * map_mask.flatten().unsqueeze(-1))
+        )  # [B*L attribute_size]
+        # 마스킹 된 부분만 로스를 구하겠다.
+        map_mask = (masked_item_sequence == self.args.mask_id).float()  # [B L]
+        map_loss = torch.sum(map_loss * map_mask.flatten().unsqueeze(-1))  # tensor(39044.5547, device='cuda:0', grad_fn=<SumBackward0>)
 
         # SP
         # segment context
-        segment_context = self.add_position_embedding(masked_segment_sequence)
-        segment_mask = (masked_segment_sequence == 0).float() * -1e8
-        segment_mask = torch.unsqueeze(torch.unsqueeze(segment_mask, 1), 1)
+        segment_context = self.add_position_embedding(masked_segment_sequence)  # [B L H]
+        # padding 부분에 절댓값이 아주 큰 음수 넣어줌
+        segment_mask = (masked_segment_sequence == 0).float() * -1e8  # [B L]
+        segment_mask = torch.unsqueeze(torch.unsqueeze(segment_mask, 1), 1)  # [B 1 1 L]
         segment_encoded_layers = self.item_encoder(
             segment_context, segment_mask, output_all_encoded_layers=True
         )
@@ -210,7 +223,7 @@ class S3RecModel(nn.Module):
         pos_segment_encoded_layers = self.item_encoder(
             pos_segment_emb, pos_segment_mask, output_all_encoded_layers=True
         )
-        pos_segment_emb = pos_segment_encoded_layers[-1][:, -1, :]
+        pos_segment_emb = pos_segment_encoded_layers[-1][:, -1, :] # [B H]
 
         # neg_segment
         neg_segment_emb = self.add_position_embedding(neg_segment)
@@ -230,7 +243,7 @@ class S3RecModel(nn.Module):
             self.criterion(
                 sp_distance, torch.ones_like(sp_distance, dtype=torch.float32)
             )
-        )
+        )  # tensor(359.4898, device='cuda:0', grad_fn=<SumBackward0>)
 
         return aap_loss, mip_loss, map_loss, sp_loss
 

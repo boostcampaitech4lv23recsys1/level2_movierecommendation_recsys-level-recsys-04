@@ -117,11 +117,10 @@ def main():
 
     # item2attribute : dict(item_id : genre의 list), attribute_size : genre id의 가장 큰 값
     item2attribute, attribute_size = get_item2attribute_json(item2attribute_file)
-
     # item, genre id의 가장 큰 값 저장합니다.
     args.item_size = max_item + 2 # 6808(mask_item_id 까지 포함해서)
     args.mask_id = max_item + 1 # 6807
-    args.attribute_size = attribute_size + 1
+    args.attribute_size = attribute_size + 1  # 19
 
     args.item2attribute = item2attribute
 

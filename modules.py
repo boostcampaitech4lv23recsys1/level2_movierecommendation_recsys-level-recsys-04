@@ -123,15 +123,15 @@ class SelfAttention(nn.Module):
         new_x_shape = x.size()[:-1] + (
             self.num_attention_heads, # defalut = 2
             self.attention_head_size, # hidden_size // num_attention_head = 32(defalut)
-        )
-        x = x.view(*new_x_shape)  # [B * L * (num_att_head) * (att_head_size)]
-        return x.permute(0, 2, 1, 3)  # [B * (num_att_head) * L * (att_head_size)]
+        ) 
+        x = x.view(*new_x_shape)  # [B, L, (num_att_head), (att_head_size)]
+        return x.permute(0, 2, 1, 3) # [B, L, 2, H // 2] => [B, 2, L, H // 2]  ( [B, (num_att_head), L, (att_head_size)] )
 
     def forward(self, input_tensor, attention_mask):
         """_summary_
         Args:
             input_tensor (tenser): (batch * max_len * hidden_size)
-            attention_mask (tenser): (batch * 1 * 1 * max_len)
+            attention_mask (tenser): (batch * 1 * 1 * max_len) or (batch * 1 * max_len * max_len)
 
         Returns:
             hidden_states (tensor): (batch * max_len * hidden_size)
@@ -152,7 +152,7 @@ class SelfAttention(nn.Module):
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)  # [B * (num_att_head) * L * L]
         # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
         # [batch_size, heads, seq_len, seq_len] scores
-        # [batch_size, 1, 1, seq_len], 패딩 값은 마이너스 거의 무한대.
+        # [batch_size, 1, 1, seq_len], 패딩 값은 마이너스 거의 무한대. (train에선 [batch_size, 1, seq_len, seq_len])
         attention_scores = attention_scores + attention_mask  # [B * (num_att_head) * L * L]
 
         # Normalize the attention scores to probabilities.

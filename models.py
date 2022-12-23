@@ -65,17 +65,19 @@ class S3RecModel(nn.Module):
         )  # [B*L H]
         target_item = target_item.view([-1, self.args.hidden_size])  # [B*L H]
         score = torch.mul(sequence_output, target_item)  # [B*L H]
-        return torch.sigmoid(torch.sum(score, -1))  # [B*L]
+        return torch.sum(score, -1)  # [B*L], torch.sigmoid(torch.sum(score, -1)) 
 
     # MAP
     def masked_attribute_prediction(self, sequence_output, attribute_embedding):
+        # map_norm : Linear hidden => hidden
         sequence_output = self.map_norm(sequence_output)  # [B L H]
         sequence_output = sequence_output.view(
             [-1, self.args.hidden_size, 1]
         )  # [B*L H 1]
         # [tag_num H] [B*L H 1] -> [B*L tag_num 1]
+        # 실제 장르와 예측한 장르가 얼마나 일치하는지?
         score = torch.matmul(attribute_embedding, sequence_output)
-        return torch.sigmoid(score.squeeze(-1))  # [B*L tag_num]
+        return torch.sigmoid(score.squeeze(-1))  # [B*L tag_num], torch.sigmoid(score.squeeze(-1))
 
     # SP sample neg segment
     def segment_prediction(self, context, segment):
@@ -84,15 +86,17 @@ class S3RecModel(nn.Module):
         :param segment: [B H]
         :return:
         """
+        # sp_norm : Linear hidden => hidden
         context = self.sp_norm(context)  # [B H]
         score = torch.mul(context, segment)  # [B H]
-        return torch.sigmoid(torch.sum(score, dim=-1))  # [B]
+        return torch.sum(score, dim=-1)  # [B], torch.sigmoid(torch.sum(score, dim=-1))
 
+    
     def add_position_embedding(self, sequence):
         """_summary_
         입력 값에서 아이템 임베딩을 해준 뒤 포지션 임베딩을 더해줍니다.
         Args:
-            sequence (tenser): (batch * max_len), 영화 id 기록(마스킹 중간에 되있음) 
+            sequence (tenser): (batch * max_len), 영화 id 기록
         Returns:
             sequence_emb (tenser): (batch * max_len * hidden_size)
         """        
@@ -139,6 +143,8 @@ class S3RecModel(nn.Module):
             masked_item_sequence (tensor): (batch * max_len), 영화 id 기록(마스킹 중간에 되있음) 
             pos_items (tensor): (batch * max_len), 영화 id 기록(패딩 외 전처리하지 않은 순수 데이터)
             neg_items (tensor): (batch * max_len), 영화 id 기록(마스킹 부분이 네거티브 샘플로 대체)
+            -------------------------------------------------------------------------
+            (4번째 로스만을 위해 있는 3개의 변수.)
             masked_segment_sequence (tensor): (batch * max_len), 패딩/실제/마스킹/실제
             pos_segment (tensor): (batch * max_len), 패딩/마스킹/실제/마스킹 
             neg_segment (tensor): (batch * max_len), 패딩/마스킹/네거티브/마스킹
@@ -196,26 +202,29 @@ class S3RecModel(nn.Module):
         # MAP
         map_score = self.masked_attribute_prediction(
             sequence_output, attribute_embeddings  # [B L H], [attribute_size H]
-        )  # [B*L attribute_size]
+        )
+        # map_score : [B * L, attribute_size]
+        # attributes : [B, L, attribute_size] => [B * L, attribute_size]
         map_loss = self.criterion(
             map_score, attributes.view(-1, self.args.attribute_size).float()
         )  # [B*L attribute_size]
-        # 마스킹 된 부분만 로스를 구하겠다.
-        map_mask = (masked_item_sequence == self.args.mask_id).float()  # [B L]
-        map_loss = torch.sum(map_loss * map_mask.flatten().unsqueeze(-1))  # tensor(39044.5547, device='cuda:0', grad_fn=<SumBackward0>)
+        # 마스킹 된 영화의 장르를 잘 맞추는지 평가합니다.
+        map_mask = (masked_item_sequence == self.args.mask_id).float()
+        map_loss = torch.sum(map_loss * map_mask.flatten().unsqueeze(-1))
 
         # SP
         # segment context
         segment_context = self.add_position_embedding(masked_segment_sequence)  # [B L H]
-        # padding 부분에 절댓값이 아주 큰 음수 넣어줌
-        segment_mask = (masked_segment_sequence == 0).float() * -1e8  # [B L]
-        segment_mask = torch.unsqueeze(torch.unsqueeze(segment_mask, 1), 1)  # [B 1 1 L]
+        segment_mask = (masked_segment_sequence == 0).float() * -1e8 # 패딩(0) 처리 위해서
+        # sequence_mask : [B * L] => [B * 1 * 1 * L]
+        segment_mask = torch.unsqueeze(torch.unsqueeze(segment_mask, 1), 1)
         segment_encoded_layers = self.item_encoder(
             segment_context, segment_mask, output_all_encoded_layers=True
         )
 
         # take the last position hidden as the context
         segment_context = segment_encoded_layers[-1][:, -1, :]  # [B H]
+
         # pos_segment
         pos_segment_emb = self.add_position_embedding(pos_segment)
         pos_segment_mask = (pos_segment == 0).float() * -1e8
@@ -250,24 +259,32 @@ class S3RecModel(nn.Module):
     # Fine tune
     # same as SASRec
     def finetune(self, input_ids):
-
+        # attention_mask : [B, L], 패딩된 값은 0 / 아닌 값은 1인 마스킹 행렬 만들기.
         attention_mask = (input_ids > 0).long()
+        # extended_attention_mask : [B, 1, 1, L]
         extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(
             2
         )  # torch.int64
         max_len = attention_mask.size(-1)
         attn_shape = (1, max_len, max_len)
+        # subsequent_mask : 상 삼각행렬. [[[0, 1, 1, .. 1], [0, 0, 1, .. 1], ... , [0,0, ... 0]]], [1, L, L]
         subsequent_mask = torch.triu(torch.ones(attn_shape), diagonal=1)  # torch.uint8
         subsequent_mask = (subsequent_mask == 0).unsqueeze(1)
+        # subsequent_mask : 하 삼각행렬. [[[[1, 0, 0, .. 0], [1, 1, 0, .. 0], ... , [1,1, ... 1]]]], [1, 1, L, L]
         subsequent_mask = subsequent_mask.long()
 
         if self.args.cuda_condition:
             subsequent_mask = subsequent_mask.cuda()
 
+        # [B, 1, 1, L] * [1, 1, L, L] => [B, 1, L, L]
+        # extended_attention_mask : 패딩아닌 것만 1
+        # subsequent_mask : 하나의 시퀀셜 영화기록 L을 L * L로 확장. 이전 기록 마스킹 하는 식으로 확장.
+        # 두 마스킹을 곱하면 패딩과 이전 기록 마스킹을 동시에 하는 마스킹 텐서 탄생.
         extended_attention_mask = extended_attention_mask * subsequent_mask
         extended_attention_mask = extended_attention_mask.to(
             dtype=next(self.parameters()).dtype
         )  # fp16 compatibility
+        # 마스킹 된 값 -10000 곱하기. 마스킹 안된 값은 0.
         extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
 
         sequence_emb = self.add_position_embedding(input_ids)
@@ -275,7 +292,6 @@ class S3RecModel(nn.Module):
         item_encoded_layers = self.item_encoder(
             sequence_emb, extended_attention_mask, output_all_encoded_layers=True
         )
-
         sequence_output = item_encoded_layers[-1]
         return sequence_output
 

@@ -117,7 +117,7 @@ class Trainer:
         test_item_emb = self.model.item_embeddings.weight
         # [batch hidden_size ]
         rating_pred = torch.matmul(seq_out, test_item_emb.transpose(0, 1))
-        return rating_pred
+        return rating_pred  # [B item_num]
 
 
 # Trainer 클래스를 상속해서 만들었습니다.
@@ -288,23 +288,29 @@ class FinetuneTrainer(Trainer):
 
                 batch = tuple(t.to(self.device) for t in batch)
                 user_ids, input_ids, _, target_neg, answers = batch
-                recommend_output = self.model.finetune(input_ids)
+                recommend_output = self.model.finetune(input_ids)  # [B L H]
 
-                recommend_output = recommend_output[:, -1, :]
+                recommend_output = recommend_output[:, -1, :]  # [B H]
 
-                rating_pred = self.predict_full(recommend_output)
+                rating_pred = self.predict_full(recommend_output)  # [B item_num]
 
                 rating_pred = rating_pred.cpu().data.numpy().copy()
                 batch_user_index = user_ids.cpu().numpy()
+                # 해당 User가 시청한 영화 제외
                 rating_pred[self.args.train_matrix[batch_user_index].toarray() > 0] = -np.inf
+                # mask_id 제외
                 rating_pred[:, -1] = -np.inf
 
+                # TOP 10 index 추출
                 ind = np.argpartition(rating_pred, -10)[:, -10:]
 
+                # Top 10 값 추출
                 arr_ind = rating_pred[np.arange(len(rating_pred))[:, None], ind]
 
+                # Top 10 역정렬된 순서대로 index 추출
                 arr_ind_argsort = np.argsort(arr_ind)[np.arange(len(rating_pred)), ::-1]
 
+                # user 별 Top 10 item index 높은 값 순서대로 10개 추출
                 batch_pred_list = ind[
                     np.arange(len(rating_pred))[:, None], arr_ind_argsort
                 ]

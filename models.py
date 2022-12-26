@@ -15,7 +15,6 @@ class S3RecModel(nn.Module):
         self.attribute_embeddings = nn.Embedding(
             args.attribute_size, args.hidden_size, padding_idx=0
         )
-        breakpoint()
         # positional embedding
         # label 개수 <= max_seq_length
         self.position_embeddings = nn.Embedding(args.max_seq_length, args.hidden_size)

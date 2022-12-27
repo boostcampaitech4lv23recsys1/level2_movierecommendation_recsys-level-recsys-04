@@ -29,7 +29,7 @@ def main():
     parser.add_argument("--model_name", default="Pretrain", type=str)
 
     parser.add_argument(
-        "--hidden_size", type=int, default=64, help="hidden size of transformer model"
+        "--hidden_size", type=int, default=256, help="hidden size of transformer model"
     )
     parser.add_argument(
         "--num_hidden_layers", type=int, default=2, help="number of layers"
@@ -44,11 +44,11 @@ def main():
     parser.add_argument(
         "--attention_probs_dropout_prob",
         type=float,
-        default=0.5,
+        default=0.4,
         help="attention dropout p",
     )
     parser.add_argument(
-        "--hidden_dropout_prob", type=float, default=0.5, help="hidden dropout p"
+        "--hidden_dropout_prob", type=float, default=0.3, help="hidden dropout p"
     )
     # models.py -> init_weights 함수
     # initialize model weight -> (mean=0, std=initializer_range) 로 초기화
@@ -64,27 +64,27 @@ def main():
 
     # pre train args, 프리트레이너 하이퍼파라미터
     parser.add_argument(
-        "--pre_epochs", type=int, default=100, help="number of pre_train epochs"
+        "--pre_epochs", type=int, default=20, help="number of pre_train epochs"
     )
     parser.add_argument("--pre_batch_size", type=int, default=512)
 
     # sequence에서 item을 masking 처리할 확률 (=negative case로 처리할 확률) (datasets.py)
     # 이 값이 커지면, negative item 비율이 늘어남 (1일 경우 모두 negative)
     parser.add_argument("--mask_p", type=float, default=0.2, help="mask probability")
-    parser.add_argument("--aap_weight", type=float, default=0.5, help="aap loss weight") # 0.2
-    parser.add_argument("--mip_weight", type=float, default=0.5, help="mip loss weight") # 1.0
+    parser.add_argument("--aap_weight", type=float, default=1, help="aap loss weight") # 0.2
+    parser.add_argument("--mip_weight", type=float, default=0, help="mip loss weight") # 1.0
     parser.add_argument("--map_weight", type=float, default=0, help="map loss weight") # 1.0
-    parser.add_argument("--sp_weight", type=float, default=0.5, help="sp loss weight") # 0.5
+    parser.add_argument("--sp_weight", type=float, default=0, help="sp loss weight") # 0.5
 
     # 옵티마이저 관련 하이퍼파라미터
     parser.add_argument(
         "--weight_decay", type=float, default=0.0, help="weight_decay of adam"
     )
     parser.add_argument(
-        "--adam_beta1", type=float, default=0.9, help="adam first beta value"
+        "--adam_beta1", type=float, default=0.8, help="adam first beta value"
     )
     parser.add_argument(
-        "--adam_beta2", type=float, default=0.999, help="adam second beta value"
+        "--adam_beta2", type=float, default=0.9999, help="adam second beta value"
     )
     parser.add_argument("--gpu_id", type=str, default="0", help="gpu_id")
 
@@ -144,7 +144,7 @@ def main():
         losses = trainer.pretrain(epoch, pretrain_dataloader)
         ## comparing `sp_loss_avg``
         # early_stopping 여부를 점검하여 에포크를 멈출지 살펴봅니다.
-        early_stopping(np.array([-losses["sp_loss_avg"]]), trainer.model)
+        early_stopping(np.array([-losses["aap_loss_avg"]]), trainer.model) # sp_loss_avg
         if early_stopping.early_stop:
             print("Early stopping")
             break

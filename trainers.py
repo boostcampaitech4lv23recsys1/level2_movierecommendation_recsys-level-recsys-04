@@ -303,6 +303,7 @@ class FinetuneTrainer(Trainer):
 
                 # TOP 10 index 추출
                 ind = np.argpartition(rating_pred, -10)[:, -10:]
+                #ind = np.argpartition(rating_pred, -20)[:, -20:]
 
                 # Top 10 값 추출
                 arr_ind = rating_pred[np.arange(len(rating_pred))[:, None], ind]

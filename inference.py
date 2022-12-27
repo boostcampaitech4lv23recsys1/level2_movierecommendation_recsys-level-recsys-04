@@ -28,7 +28,7 @@ def main():
     # 모델 argument(하이퍼 파라미터)
     parser.add_argument("--model_name", default="Finetune_full", type=str)
     parser.add_argument(
-        "--hidden_size", type=int, default=64, help="hidden size of transformer model"
+        "--hidden_size", type=int, default=300, help="hidden size of transformer model"
     )
     parser.add_argument(
         "--num_hidden_layers", type=int, default=2, help="number of layers"
@@ -41,17 +41,17 @@ def main():
     parser.add_argument(
         "--attention_probs_dropout_prob",
         type=float,
-        default=0.5,
+        default=0.2,
         help="attention dropout p",
     )
     parser.add_argument(
-        "--hidden_dropout_prob", type=float, default=0.5, help="hidden dropout p"
+        "--hidden_dropout_prob", type=float, default=0.3, help="hidden dropout p"
     )
 
     # 모델 파라미터 initializer 범위 설정? (모델 본 사람이 채워줘.)
     parser.add_argument("--initializer_range", type=float, default=0.02)
     # 최대 시퀀셜 길이 설정
-    parser.add_argument("--max_seq_length", default=50, type=int)
+    parser.add_argument("--max_seq_length", default=250, type=int)
 
     # train args, 트레이너 하이퍼파라미터
     parser.add_argument("--lr", type=float, default=0.001, help="learning rate of adam")
@@ -65,13 +65,13 @@ def main():
 
     # 옵티마이저 관련 하이퍼파라미터
     parser.add_argument(
-        "--weight_decay", type=float, default=0.0, help="weight_decay of adam"
+        "--weight_decay", type=float, default=1e-06, help="weight_decay of adam"
     )
     parser.add_argument(
-        "--adam_beta1", type=float, default=0.9, help="adam first beta value"
+        "--adam_beta1", type=float, default=0.7, help="adam first beta value"
     )
     parser.add_argument(
-        "--adam_beta2", type=float, default=0.999, help="adam second beta value"
+        "--adam_beta2", type=float, default=0.9999, help="adam second beta value"
     )
     parser.add_argument("--gpu_id", type=str, default="0", help="gpu_id")
 

@@ -29,9 +29,9 @@ class PretrainDataset(Dataset):
         """
         # self.user_seq : [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
         for seq in self.user_seq: # seq : 유저마다 item_id 리스트. 
-            lens = (len(seq[:-1]) // 50) + 1
+            lens = (len(seq[:-1]) // self.max_len) + 1
             for i in range(lens):
-                self.part_sequence.append(seq[-(i+1)*50 - 1: -i * 50 - 1])
+                self.part_sequence.append(seq[-(i+1)*self.max_len - 1: -i * self.max_len - 1])
 
     def __len__(self):
         # part_sequence 길이 반환
@@ -282,3 +282,93 @@ class SASRecDataset(Dataset):
     def __len__(self):
         # user 수 반환
         return len(self.user_seq)
+
+
+
+class SASRecTrainDataset(Dataset):
+    def __init__(self, args, user_seq):
+        # user_seq : 유저마다 따로 아이템 리스트 저장. 2차원 배열, => [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
+        self.args = args
+        self.user_seq = user_seq
+        self.max_len = args.max_seq_length
+        self.part_sequence = []
+        self.part_user = []
+        # 아래 split_sequence 함수 참고
+        self.split_sequence()
+
+    def split_sequence(self):
+        """
+        이 함수를 통해서,
+        part_sequence에 저장되는 sequence의 길이는 모두 max_len보다 작거나 같아짐
+        """
+        # self.user_seq : [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
+        # self.max_len '+ 1'을 사용하는 이유 : target_pos 위해 원래 표본 크기보다 하나 더 뽑아야함.
+
+        # 최근 데이터를 많이 반영하는 코드
+        
+        k = self.args.num_k
+        for seq in self.user_seq: # seq : 유저마다 item_id 리스트.
+            for i in range(k):
+                self.part_sequence.append(seq[-(self.max_len+1) - (1+i*10): - (1+i*10)])
+                self.part_user.append(seq)
+
+            lens = ((len(seq) - (1+k*10)) // (self.max_len+1)) + 1
+            for i in range(lens):
+                self.part_sequence.append(seq[-(i+1)*(self.max_len+1) - (1+k*10): -i * (self.max_len+1) - (1+k*10)])
+                self.part_user.append(seq)
+
+
+        # 일반적인 데이터 argument
+        # for seq in self.user_seq: # seq : 유저마다 item_id 리스트. 
+        #     lens = ((len(seq) - 1) // (self.max_len+1)) + 1
+        #     for i in range(lens):
+        #         self.part_sequence.append(seq[-(i+1)*(self.max_len+1) - 1: -i * (self.max_len+1) - 1])
+        #         self.part_user.append(seq)
+
+    def __getitem__(self, index):
+        # sequence : part_sequence의 해당 index에 저장된 sequence
+        sequence = self.part_sequence[index]  # pos_items
+        user_item_list = self.part_user[index]
+        input_ids = sequence[:-1]
+        target_pos = sequence[1:]
+        target_neg = []
+        user_set = set(user_item_list[:-1]) # valid에 있는 데이터는 네거티브에 안걸림.
+        # input_ids 길이만큼 target_neg에 negative samples 생성
+        # 자세한건 neg_sample 함수 내에 써놨습니다.
+        for _ in input_ids:
+            target_neg.append(neg_sample(user_set, self.args.item_size))
+
+        # padding
+        # max_len 길이에 맞춰서 앞쪽 0으로 채움
+        # pad_len 값이 음수이면, [0] * pad_len = []
+        pad_len = self.max_len - len(input_ids)
+        input_ids = [0] * pad_len + input_ids
+        target_pos = [0] * pad_len + target_pos
+        target_neg = [0] * pad_len + target_neg
+
+        # 길이 max_len으로 통일
+        input_ids = input_ids[-self.max_len :]
+        target_pos = target_pos[-self.max_len :]
+        target_neg = target_neg[-self.max_len :]
+
+        # check length
+        assert len(input_ids) == self.max_len
+        assert len(target_pos) == self.max_len
+        assert len(target_neg) == self.max_len
+        
+        user_id = 0 # 아무값이나 넣음. 어짜피 안써서
+        answer = 0 # 아무값이나 넣음. 어짜피 안써서
+        # to tensor
+        cur_tensors = (
+            torch.tensor(user_id, dtype=torch.long),  # user_id for testing
+            torch.tensor(input_ids, dtype=torch.long),
+            torch.tensor(target_pos, dtype=torch.long), # input_ids 대비 하나씩 밀림.
+            torch.tensor(target_neg, dtype=torch.long), # input_ids 길이만큼 네거티브 샘플링.
+            torch.tensor(answer, dtype=torch.long), # 마지막 값.
+        )
+
+        return cur_tensors
+
+    def __len__(self):
+        # user 수 반환
+        return len(self.part_sequence)

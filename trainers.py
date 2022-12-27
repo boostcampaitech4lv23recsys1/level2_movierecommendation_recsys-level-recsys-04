@@ -300,6 +300,7 @@ class FinetuneTrainer(Trainer):
                 rating_pred[:, -1] = -np.inf
 
                 ind = np.argpartition(rating_pred, -10)[:, -10:]
+                #ind = np.argpartition(rating_pred, -20)[:, -20:]
 
                 arr_ind = rating_pred[np.arange(len(rating_pred))[:, None], ind]
 

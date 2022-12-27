@@ -29,13 +29,9 @@ class PretrainDataset(Dataset):
         """
         # self.user_seq : [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
         for seq in self.user_seq: # seq : 유저마다 item_id 리스트. 
-            # ex) max_len = 3일 때
-            # [3, 5, 3, 2, 6, 9, 1, 5] -> [2, 6, 9]
-            # keeping same as train set(valid set은 뒤에 2개로 진행하기 때문.)
-            input_ids = seq[-(self.max_len + 2) : -2]  
-            # ex) [2, 6, 9] -> [2], [2, 6], [2, 6, 9]
-            for i in range(len(input_ids)):
-                self.part_sequence.append(input_ids[: i + 1])
+            lens = (len(seq[:-1]) // self.max_len) + 1
+            for i in range(lens):
+                self.part_sequence.append(seq[-(i+1)*self.max_len - 1: -i * self.max_len - 1])
 
     def __len__(self):
         # part_sequence 길이 반환
@@ -60,7 +56,7 @@ class PretrainDataset(Dataset):
                 # item_set 안에 없는 item (negative sample) random하게 뽑아서 neg_items에 추가
                 neg_items.append(neg_sample(item_set, self.args.item_size)) # neg_sample(utils.py)
             else:  # prob가 mask_p 보다 크거나 같을 경우
-                masked_item_sequence.append(item)
+                masked_item_sequence.append(item) 
                 neg_items.append(item)
 
         # add mask at the last position (맨 뒤 한 값은 무조건 마스킹.)
@@ -70,6 +66,7 @@ class PretrainDataset(Dataset):
         # Segment Prediction
         if len(sequence) < 2:  # sequence 길이 2보다 작은 경우
             masked_segment_sequence = sequence
+
             pos_segment = sequence
             neg_segment = sequence
         else:  # sequence 길이 2 이상인 경우
@@ -146,14 +143,12 @@ class PretrainDataset(Dataset):
         ''' 
         attributes = []
         for item in pos_items:
-            # 이거 (attribute_size+1) 로 해줘야하지 않나?
-            # 제일 큰 genre_id 값이 3이면, [0, 0, 0, 1] 되야 하니까? => 리스트 인덱싱을 0부터 채우니깐 괜찮은듯?
             attribute = [0] * self.args.attribute_size
             try:
                 now_attribute = self.args.item2attribute[str(item)]
                 for a in now_attribute: # 속성이 여러개인 경우도 고려.
                     attribute[a] = 1
-            except: # 속성이 없을수도. (모든 아이템은 다 속성이 1개는 있으나 mask_id는 속성이 없음.)
+            except: # 속성이 없을수도. (모든 아이템은 다 속성이 1개는 있으나 mask_id와 padding 값 0은 속성이 없음.)
                 pass
             attributes.append(attribute)
 
@@ -207,17 +202,13 @@ class SASRecDataset(Dataset):
         items = self.user_seq[index]
 
         # check data_type
-        assert self.data_type in {"train", "valid", "test", "submission"}
+        assert self.data_type in {"train", "valid", "submission"}
 
         # [0, 1, 2, 3, 4, 5, 6]
         # train [0, 1, 2, 3]
         # target [1, 2, 3, 4]
 
-        # valid [0, 1, 2, 3, 4]
-        # target [1, 2, 3, 4, 5]
-        # answer [5]
-
-        # test [0, 1, 2, 3, 4, 5]
+        # valid [0, 1, 2, 3, 4, 5]
         # target [1, 2, 3, 4, 5, 6]
         # answer [6]
 
@@ -225,16 +216,11 @@ class SASRecDataset(Dataset):
         # answer None
 
         if self.data_type == "train":
-            input_ids = items[:-3]
-            target_pos = items[1:-2]
+            input_ids = items[:-2]
+            target_pos = items[1:-1]
             answer = [0]  # no use
 
         elif self.data_type == "valid":
-            input_ids = items[:-2]
-            target_pos = items[1:-1]
-            answer = [items[-2]]
-
-        elif self.data_type == "test":
             input_ids = items[:-1]
             target_pos = items[1:]
             answer = [items[-1]]
@@ -295,3 +281,93 @@ class SASRecDataset(Dataset):
     def __len__(self):
         # user 수 반환
         return len(self.user_seq)
+
+
+
+class SASRecTrainDataset(Dataset):
+    def __init__(self, args, user_seq):
+        # user_seq : 유저마다 따로 아이템 리스트 저장. 2차원 배열, => [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
+        self.args = args
+        self.user_seq = user_seq
+        self.max_len = args.max_seq_length
+        self.part_sequence = []
+        self.part_user = []
+        # 아래 split_sequence 함수 참고
+        self.split_sequence()
+
+    def split_sequence(self):
+        """
+        이 함수를 통해서,
+        part_sequence에 저장되는 sequence의 길이는 모두 max_len보다 작거나 같아짐
+        """
+        # self.user_seq : [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
+        # self.max_len '+ 1'을 사용하는 이유 : target_pos 위해 원래 표본 크기보다 하나 더 뽑아야함.
+
+        # 최근 데이터를 많이 반영하는 코드
+        
+        k = self.args.num_k
+        for seq in self.user_seq: # seq : 유저마다 item_id 리스트.
+            for i in range(k):
+                self.part_sequence.append(seq[-(self.max_len+1) - (1+i*10): - (1+i*10)])
+                self.part_user.append(seq)
+
+            lens = ((len(seq) - (1+k*10)) // (self.max_len+1)) + 1
+            for i in range(lens):
+                self.part_sequence.append(seq[-(i+1)*(self.max_len+1) - (1+k*10): -i * (self.max_len+1) - (1+k*10)])
+                self.part_user.append(seq)
+
+
+        # 일반적인 데이터 argument
+        # for seq in self.user_seq: # seq : 유저마다 item_id 리스트. 
+        #     lens = ((len(seq) - 1) // (self.max_len+1)) + 1
+        #     for i in range(lens):
+        #         self.part_sequence.append(seq[-(i+1)*(self.max_len+1) - 1: -i * (self.max_len+1) - 1])
+        #         self.part_user.append(seq)
+
+    def __getitem__(self, index):
+        # sequence : part_sequence의 해당 index에 저장된 sequence
+        sequence = self.part_sequence[index]  # pos_items
+        user_item_list = self.part_user[index]
+        input_ids = sequence[:-1]
+        target_pos = sequence[1:]
+        target_neg = []
+        user_set = set(user_item_list[:-1]) # valid에 있는 데이터는 네거티브에 안걸림.
+        # input_ids 길이만큼 target_neg에 negative samples 생성
+        # 자세한건 neg_sample 함수 내에 써놨습니다.
+        for _ in input_ids:
+            target_neg.append(neg_sample(user_set, self.args.item_size))
+
+        # padding
+        # max_len 길이에 맞춰서 앞쪽 0으로 채움
+        # pad_len 값이 음수이면, [0] * pad_len = []
+        pad_len = self.max_len - len(input_ids)
+        input_ids = [0] * pad_len + input_ids
+        target_pos = [0] * pad_len + target_pos
+        target_neg = [0] * pad_len + target_neg
+
+        # 길이 max_len으로 통일
+        input_ids = input_ids[-self.max_len :]
+        target_pos = target_pos[-self.max_len :]
+        target_neg = target_neg[-self.max_len :]
+
+        # check length
+        assert len(input_ids) == self.max_len
+        assert len(target_pos) == self.max_len
+        assert len(target_neg) == self.max_len
+        
+        user_id = 0 # 아무값이나 넣음. 어짜피 안써서
+        answer = 0 # 아무값이나 넣음. 어짜피 안써서
+        # to tensor
+        cur_tensors = (
+            torch.tensor(user_id, dtype=torch.long),  # user_id for testing
+            torch.tensor(input_ids, dtype=torch.long),
+            torch.tensor(target_pos, dtype=torch.long), # input_ids 대비 하나씩 밀림.
+            torch.tensor(target_neg, dtype=torch.long), # input_ids 길이만큼 네거티브 샘플링.
+            torch.tensor(answer, dtype=torch.long), # 마지막 값.
+        )
+
+        return cur_tensors
+
+    def __len__(self):
+        # user 수 반환
+        return len(self.part_sequence)

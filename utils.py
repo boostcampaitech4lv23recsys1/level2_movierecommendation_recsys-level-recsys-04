@@ -35,11 +35,11 @@ def neg_sample(item_set, item_size):
     Returns:
         item(int): item_id (item_set에 없는)  
     """    
-    # 1 <= item < item_size
-    item = random.randint(1, item_size - 1)
+    # 1 <= item < item_size, 1부터 하는 이유? 0은 패딩이니깐.
+    item = random.randint(1, item_size - 2) # 1, item_size - 1
     # item_set 안에 없는 item이 나올 때 까지 계속 반복
     while item in item_set:
-        item = random.randint(1, item_size - 1)
+        item = random.randint(1, item_size - 2) # 1, item_size - 1
     return item
 
 
@@ -89,7 +89,7 @@ class EarlyStopping:
 
     def save_checkpoint(self, score, model):
         """Saves model when the performance is better."""
-        if self.verbose:
+        if self.verbose: # 메시지만 보내줍니다.
             print(f"Better performance. Saving model ...")
         torch.save(model.state_dict(), self.checkpoint_path)
         self.score_min = score
@@ -251,10 +251,8 @@ def get_user_seqs(data_file):
     # num_items : 가장 큰 아이템 id를 기준으로 아이템 수 측정.(실제로는 훨신 작음.) 
     num_items = max_item + 2
 
-    # valid_rating_matrix : 유저-아이템 희소행렬, 유저마다 마지막 2개 영화 시청기록은 뺌.(valid 위해.)
-    valid_rating_matrix = generate_rating_matrix_valid(user_seq, num_users, num_items)
-    # test_rating_matrix : 유저-아이템 희소행렬, 유저마다 마지막 1개 영화 시청기록은 뺌.(test 위해.)
-    test_rating_matrix = generate_rating_matrix_test(user_seq, num_users, num_items)
+    # valid_rating_matrix : 유저-아이템 희소행렬, 유저마다 마지막 1개 영화 시청기록은 뺌.(valid 위해.)
+    valid_rating_matrix = generate_rating_matrix_test(user_seq, num_users, num_items)
     # submission_rating_matrix : 유저-아이템 희소행렬, 유저마다 영화 시청기록은 빼지 않음.
     submission_rating_matrix = generate_rating_matrix_submission(
         user_seq, num_users, num_items
@@ -263,7 +261,6 @@ def get_user_seqs(data_file):
         user_seq,
         max_item,
         valid_rating_matrix,
-        test_rating_matrix,
         submission_rating_matrix,
     )
 

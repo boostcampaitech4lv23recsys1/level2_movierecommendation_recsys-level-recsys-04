@@ -41,6 +41,12 @@
 
 # 🎢 프로젝트 수행 절차
 
+#### 1. EDA
+#### 2. Rule-based Model
+#### 3. SASRec Model (S3-Rec with no Pre-training)
+#### 4. Hyperparameter Tuning (Wandb)
+#### 5. Ensemble (SASRec + EASE)
+
 <br />
 <br />
 

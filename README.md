@@ -69,14 +69,18 @@
 <br />
 <br />
 
-# 📝 팀 회고
-
-<br />
-<br />
 
 
 
-# ⌨️ Code
+# ⌨️ Model Architecture
+```
+자세한 진행 과정은 발표자료 내 PDF 파일을 참고해주세요!
+```
+## Rule-Base 모델
+```
+Model_ipynb/KSY_rulbase.ipynb 실행
+```
+
 ## S3-Rec 모델 (Baseline)
 
 영화 추천 대회를 위한 S3-Rec 베이스라인 코드입니다.<br>
@@ -92,7 +96,10 @@ pip install -r requirements.txt
 ```
 
 ### How to run
-
+0. Encoding
+   ```
+   ensamble.ipynb로 인코딩 된 train_new 파일 생성
+   ```
 1. Pretraining
    ```
    python run_pretrain.py
@@ -110,7 +117,19 @@ pip install -r requirements.txt
    ```
    python inference.py
    ```
+4. Decoding
+   ```
+   ensamble.ipynb로 디코딩 된 submission.csv 파일 생성
+   ```
    
 <br />
 
 ## EASE
+```
+EASE/bae_EASE.ipynb 실행
+```
+
+## Ensemble
+```
+ensemble.ipynb 실행
+```

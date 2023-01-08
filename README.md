@@ -1,5 +1,5 @@
 # Movie Recommendation Baseline Code
-<img width="540" alt="image" src="https://user-images.githubusercontent.com/68258495/211189090-961fc8af-8add-4586-b2fa-c7c8eee3cdfc.png">
+!<img width="538" alt="image" src="https://user-images.githubusercontent.com/68258495/211189168-0228f7ae-6a05-4691-a59b-e2a2e6cc8155.png">
 
 
 ## 팀원 소개

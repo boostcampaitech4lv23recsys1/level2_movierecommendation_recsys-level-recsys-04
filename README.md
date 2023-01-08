@@ -11,7 +11,7 @@
 # 🏆️ 프로젝트 목표
 <!-- <p align="center"><img src="https://user-images.githubusercontent.com/65529313/168472960-0eac76e2-4fe3-4ebc-b093-f9c0aab59859.png" /></p> -->
 - 사용자의 영화 시청 이력 데이터를 바탕으로, 사용자가 다음에 시청할 영화 및 좋아할 영화를 추천
-- 리더보드 스코어 : Recall@10 기준 높은 순으로 순위 선정
+- Private 리더보드 스코어 Recall@10 기준으로 순위 선정
 
 <br />
 <br />

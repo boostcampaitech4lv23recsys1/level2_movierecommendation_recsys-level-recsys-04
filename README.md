@@ -67,7 +67,7 @@
 
 
 # ⌨️ Code
-## Baseline Model (S3-Rec)
+## S3-Rec 모델 (Baseline)
 
 영화 추천 대회를 위한 S3-Rec 베이스라인 코드입니다.
 다음 코드를 대회에 맞게 재구성 했습니다.
@@ -75,13 +75,13 @@
 - 논문 링크: https://arxiv.org/abs/2008.07873
 - 코드 출처: https://github.com/aHuiWang/CIKM2020-S3Rec
 
-## Installation
+### Installation
 
 ```
 pip install -r requirements.txt
 ```
 
-## How to run
+### How to run
 
 1. Pretraining
    ```
@@ -100,3 +100,7 @@ pip install -r requirements.txt
    ```
    python inference.py
    ```
+   
+<br />
+
+## EASE 

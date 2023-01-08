@@ -305,17 +305,31 @@ class SASRecTrainDataset(Dataset):
 
         # 최근 데이터를 많이 반영하는 코드
         
+        ## test
         k = self.args.num_k
+        a = 2
         for seq in self.user_seq: # seq : 유저마다 item_id 리스트.
             for i in range(k):
-                self.part_sequence.append(seq[-(self.max_len+1) - (1+i*10): - (1+i*10)])
+                self.part_sequence.append(seq[-(self.max_len+1) - (i*a): - (i*a)])
                 self.part_user.append(seq)
 
-            lens = ((len(seq) - (1+k*10)) // (self.max_len+1)) + 1
+            lens = ((len(seq) - (k*a)) // (self.max_len+1)) + 1
             for i in range(lens):
-                self.part_sequence.append(seq[-(i+1)*(self.max_len+1) - (1+k*10): -i * (self.max_len+1) - (1+k*10)])
+                self.part_sequence.append(seq[-(i+1)*(self.max_len+1) - (k*a): -i * (self.max_len+1) - (k*a)])
                 self.part_user.append(seq)
 
+        ## valid
+        # k = self.args.num_k
+        # a = 2
+        # for seq in self.user_seq: # seq : 유저마다 item_id 리스트.
+        #     for i in range(k):
+        #         self.part_sequence.append(seq[-(self.max_len+1) - (1+i*a): - (1+i*a)])
+        #         self.part_user.append(seq)
+
+        #     lens = ((len(seq) - (1+k*a)) // (self.max_len+1)) + 1
+        #     for i in range(lens):
+        #         self.part_sequence.append(seq[-(i+1)*(self.max_len+1) - (1+k*a): -i * (self.max_len+1) - (1+k*a)])
+        #         self.part_user.append(seq)
 
         # 일반적인 데이터 argument
         # for seq in self.user_seq: # seq : 유저마다 item_id 리스트. 
@@ -331,9 +345,8 @@ class SASRecTrainDataset(Dataset):
         input_ids = sequence[:-1]
         target_pos = sequence[1:]
         target_neg = []
-        user_set = set(user_item_list[:-1]) # valid에 있는 데이터는 네거티브에 안걸림.
+        user_set = set(user_item_list)#[:-1]) # valid에 있는 데이터는 네거티브에 안걸림.
         # input_ids 길이만큼 target_neg에 negative samples 생성
-        # 자세한건 neg_sample 함수 내에 써놨습니다.
         for _ in input_ids:
             target_neg.append(neg_sample(user_set, self.args.item_size))
 
@@ -363,7 +376,7 @@ class SASRecTrainDataset(Dataset):
             torch.tensor(input_ids, dtype=torch.long),
             torch.tensor(target_pos, dtype=torch.long), # input_ids 대비 하나씩 밀림.
             torch.tensor(target_neg, dtype=torch.long), # input_ids 길이만큼 네거티브 샘플링.
-            torch.tensor(answer, dtype=torch.long), # 마지막 값.
+            torch.tensor([1] * self.max_len, dtype=torch.long), # 마지막 값.
         )
 
         return cur_tensors

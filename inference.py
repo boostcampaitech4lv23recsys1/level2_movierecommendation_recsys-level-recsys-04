@@ -28,7 +28,7 @@ def main():
     # 모델 argument(하이퍼 파라미터)
     parser.add_argument("--model_name", default="Finetune_full", type=str)
     parser.add_argument(
-        "--hidden_size", type=int, default=300, help="hidden size of transformer model"
+        "--hidden_size", type=int, default=256, help="hidden size of transformer model"
     )
     parser.add_argument(
         "--num_hidden_layers", type=int, default=2, help="number of layers"
@@ -51,16 +51,15 @@ def main():
     # 모델 파라미터 initializer 범위 설정? (모델 본 사람이 채워줘.)
     parser.add_argument("--initializer_range", type=float, default=0.02)
     # 최대 시퀀셜 길이 설정
-    parser.add_argument("--max_seq_length", default=250, type=int)
+    parser.add_argument("--max_seq_length", default=300, type=int)
 
     # train args, 트레이너 하이퍼파라미터
     parser.add_argument("--lr", type=float, default=0.001, help="learning rate of adam")
     parser.add_argument(
         "--batch_size", type=int, default=256, help="number of batch_size"
     )
-    parser.add_argument("--epochs", type=int, default=200, help="number of epochs")
+
     parser.add_argument("--no_cuda", action="store_true")
-    parser.add_argument("--log_freq", type=int, default=1, help="per epoch print res")
     parser.add_argument("--seed", default=42, type=int)
 
     # 옵티마이저 관련 하이퍼파라미터
@@ -114,6 +113,7 @@ def main():
     args.train_matrix = submission_rating_matrix
 
     # args_str : Finetune_full-Ml, args.output_dir : output
+    args_str = '0103valid'
     checkpoint = args_str + ".pt"
     args.checkpoint_path = os.path.join(args.output_dir, checkpoint)
 

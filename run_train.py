@@ -32,7 +32,7 @@ def main():
         "--hidden_size", type=int, default=256, help="hidden size of transformer model"
     )
     parser.add_argument(
-        "--num_k", type=int, default=3, help="data argument k"
+        "--num_k", type=int, default=5, help="data argument k"
     )
     parser.add_argument(
         "--num_hidden_layers", type=int, default=2, help="number of layers"
@@ -54,17 +54,17 @@ def main():
     # 모델 파라미터 initializer 범위 설정? (모델 본 사람이 채워줘.)
     parser.add_argument("--initializer_range", type=float, default=0.02)
     # 최대 시퀀셜 길이 설정
-    parser.add_argument("--max_seq_length", default=100, type=int)
+    parser.add_argument("--max_seq_length", default=300, type=int)
 
     # train args, 트레이너 하이퍼파라미터
-    parser.add_argument("--lr", type=float, default=0.001, help="learning rate of adam")
+    parser.add_argument("--lr", type=float, default=0.0005, help="learning rate of adam")
     parser.add_argument(
         "--batch_size", type=int, default=256, help="number of batch_size"
     )
-    parser.add_argument("--epochs", type=int, default=30, help="number of epochs") # 200
+    parser.add_argument("--epochs", type=int, default=50, help="number of epochs") # 200
     parser.add_argument("--no_cuda", action="store_true")
     parser.add_argument("--log_freq", type=int, default=1, help="per epoch print res")
-    parser.add_argument("--seed", default=42, type=int)
+    parser.add_argument("--seed", default=2002, type=int)
 
     # 옵티마이저 관련 하이퍼파라미터
     parser.add_argument(
@@ -144,7 +144,7 @@ def main():
 
     # SASRecDataset 클래스를 불러옵니다. (datasets.py 내 존재)
     # user_seq : 유저마다 따로 아이템 리스트 저장. 2차원 배열, => [[1번 유저 item_id 리스트], [2번 유저 item_id 리스트] .. ]
-    train_dataset = SASRecTrainDataset(args, user_seq)
+    train_dataset = SASRecTrainDataset(args, user_seq) # SASRecTrainDataset2(args, user_seq)
     # train_dataset = SASRecDataset(args, user_seq, data_type="train")
     # RandomSampler : 데이터 셋을 랜덤하게 섞어줍니다. 인덱스를 반환해줍니다.
     train_sampler = RandomSampler(train_dataset)
@@ -189,11 +189,14 @@ def main():
     for epoch in range(args.epochs):
         trainer.train(epoch)
 
-        if epoch % 3 == 2:
+        if epoch % 2 == 1:
             scores, _ = trainer.valid(epoch)
             wandb.log({
                 'recall_k' : scores[2]
             })
+            if scores[2] > 0.2:
+                torch.save(trainer.model.state_dict(), os.path.join(args.output_dir, f'{args.weight_decay}.pt'))
+
         
         # early_stopping(np.array(scores[-1:]), trainer.model)
         # if early_stopping.early_stop:
